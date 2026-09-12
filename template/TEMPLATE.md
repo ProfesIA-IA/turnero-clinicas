@@ -1,17 +1,17 @@
 # Turnero Clínicas — plantilla Railway
 
-Un clic para desplegar un turnero genérico (UI React + API + Postgres):
+Un clic para desplegar un turnero (UI React + API + Postgres):
 
 | Servicio | Rol |
 |---|---|
-| **turnero** | Monolito React + Express (agenda, turnos, reservas públicas) |
+| **turnero** | Monolito React + Express (agenda, pacientes, historia clínica, reservas públicas) |
 | **Postgres** | Base de datos |
 
 ```text
-Browser  →  Turnero (React + API)  →  Postgres
-                 │
-        /reservar/profesional/:slug
-        /reservar/servicio/:slug
+Navegador  →  Turnero (React + API)  →  Postgres
+                    │
+           /reservar/profesional/:slug
+           /reservar/servicio/:slug
 ```
 
 ## Checklist marketplace
@@ -21,6 +21,7 @@ Browser  →  Turnero (React + API)  →  Postgres
 - [x] Healthcheck `/health`
 - [x] Seed demo opcional (`SEED_DEMO=true`)
 - [x] Zona horaria Argentina por defecto
+- [x] Volumen de uploads (`UPLOAD_DIR=/data/uploads`)
 
 ## Opción A — IaC
 
@@ -41,11 +42,24 @@ En el dashboard:
 Cuenta verificada de Railway. Desde un proyecto que ya coincida con este stack:
 
 ```bash
-railway templates create --json
+railway templates create --project turnero-clinicas --environment production --json
 railway templates publish <template-id> \
-  --category Business \
-  --description "Agenda de turnos para clínicas, con calendario compartible" \
-  --readme-file template/marketplace.md
+  --category Starters \
+  --description "Agenda de turnos para clínicas, con calendario compartible e historia clínica" \
+  --readme-file template/marketplace.md \
+  --json
+```
+
+Categorías válidas de la CLI: `AI/ML`, `Analytics`, `Authentication`, `Automation`, `Blogs`, `Bots`, `CMS`, `Observability`, `Other`, `Starters`, `Storage`, `Queues`.
+
+Para actualizar el texto público después del primer publish:
+
+```bash
+railway templates update <template-id> \
+  --category Starters \
+  --description "Agenda de turnos para clínicas, con calendario compartible e historia clínica" \
+  --readme-file template/marketplace.md \
+  --json
 ```
 
 ## Opción C — Manual
@@ -54,7 +68,8 @@ railway templates publish <template-id> \
 2. **+ Database → PostgreSQL** (nombre: `Postgres`)
 3. **+ GitHub Repo** → este repo (nombre: `turnero`)
 4. Variables: ver `.railway/railway.ts`
-5. Dominio HTTPS → redeploy.
+5. Volumen en `/data` y `UPLOAD_DIR=/data/uploads`
+6. Dominio HTTPS → redeploy.
 
 ## Post-deploy
 
@@ -63,3 +78,4 @@ railway templates publish <template-id> \
 - [ ] Login con la password generada
 - [ ] Se ven profesionales y turnos demo
 - [ ] El enlace público de un profesional abre la reserva
+- [ ] Se puede cargar un adjunto en una nota clínica

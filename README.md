@@ -1,31 +1,44 @@
 # Turnero Clínicas
 
-Monolito React para agenda de clínicas: turnos, profesionales, servicios, horarios, bloqueos y páginas públicas de reserva al estilo Google Calendar.
+Agenda de turnos para clínicas y consultorios. Un solo servicio sirve la interfaz y la API; PostgreSQL guarda los datos. Pensado para desplegarse en un clic como [template de Railway](https://railway.com/templates).
 
-Un solo servicio sirve la UI y la API. PostgreSQL guarda los datos. Listo para publicar como **template de Railway**.
+## Qué hace
 
-## Qué incluye
+El staff entra con usuario y contraseña. Los pacientes reservan desde un enlace público, sin login.
 
-- Agenda semanal / diaria / mensual (grilla tipo Google Calendar)
-- Turnos con conflicto de horario
-- Profesionales, servicios y relación N:M
-- Horarios semanales por profesional
-- Bloqueos de agenda (por profesional o de toda la clínica)
-- Calendario compartible de un **profesional** o de un **servicio**
-- Reserva pública con slots disponibles
-- Login de administración
-- Datos demo al primer arranque
+| Área | Qué incluye |
+|------|-------------|
+| **Agenda** | Calendario semanal, diario y mensual, estilo Google Calendar |
+| **Turnos** | Alta, edición, estados (reservado, confirmado, cancelado, completado) y detección de solapamientos |
+| **Pacientes** | Ficha con datos de contacto e historial de turnos |
+| **Historia clínica** | Notas por paciente, campos personalizados, archivos adjuntos y descarga en HTML |
+| **Profesionales** | Color, servicios asociados, horarios semanales y enlace para compartir agenda |
+| **Servicios** | Duración, precio, profesionales y enlace de reserva por prestación |
+| **Bloqueos** | Cierres de agenda por profesional o de toda la clínica |
+| **Reserva pública** | Slots libres según horarios, bloqueos y turnos ya tomados |
+| **Configuración** | Nombre, zona horaria, rango horario, intervalo de slots y campos clínicos |
+
+Zona horaria por defecto: `America/Argentina/Buenos_Aires`.
 
 ## Stack
 
 | Capa | Tecnología |
 |------|------------|
 | UI | React 19 + Vite + Tailwind 4 |
-| API | Express (mismo proceso) |
-| DB | PostgreSQL 16 |
-| Deploy | Railway (Nixpacks) + IaC en `.railway/railway.ts` |
+| API | Express en el mismo proceso |
+| Base | PostgreSQL 16 |
+| Deploy | Railway (Nixpacks) e IaC en `.railway/railway.ts` |
+
+```text
+Navegador  →  Turnero (React + API)  →  Postgres
+                    │
+           /reservar/profesional/:slug
+           /reservar/servicio/:slug
+```
 
 ## Desarrollo local
+
+Requisitos: Node 20+, Docker (para Postgres) y npm.
 
 ```bash
 cp .env.example .env
@@ -35,43 +48,116 @@ npm run migrate
 npm run dev
 ```
 
-- UI: http://localhost:5173
+Atajo equivalente:
+
+```bash
+npm run setup
+npm run dev
+```
+
+- Interfaz: http://localhost:5173
 - API: http://localhost:3001
+- Salud: http://localhost:3001/health
 - Usuario: `admin` / `admin123`
 
-## Producción / Railway
+En desarrollo Vite hace proxy de `/api` al backend. En producción un solo proceso sirve el build estático y la API.
 
-`npm start` corre migraciones y levanta Express sirviendo `server/public` (el build de Vite).
+### Variables locales
 
-Healthcheck: `GET /health`
+Copiá `.env.example`. Las más usadas:
 
-Variables:
+| Variable | Default | Uso |
+|----------|---------|-----|
+| `DATABASE_URL` | `postgres://turnero:turnero@localhost:5432/turnero` | Conexión a Postgres |
+| `PORT` | `3001` | Puerto de la API |
+| `DEFAULT_ADMIN_USER` | `admin` | Usuario inicial |
+| `DEFAULT_ADMIN_PASSWORD` | `admin123` | Contraseña inicial (solo local) |
+| `CLINIC_TIMEZONE` | `America/Argentina/Buenos_Aires` | Zona horaria |
+| `CLINIC_NAME` | `Clínica Demo` | Nombre visible |
+| `SEED_DEMO` | `true` | Carga profesionales, servicios y turnos de ejemplo si la base está vacía |
+| `UPLOAD_DIR` | (vacío → `uploads/` en el repo) | Carpeta de archivos clínicos |
+| `CORS_ORIGIN` | `*` | Orígenes permitidos |
 
-| Variable | Descripción |
-|----------|-------------|
-| `DATABASE_URL` | Postgres (`${{Postgres.DATABASE_URL}}` en Railway) |
-| `DEFAULT_ADMIN_USER` | Usuario inicial (`admin`) |
-| `DEFAULT_ADMIN_PASSWORD` | Se genera con `${{secret(20)}}` en el template |
-| `CLINIC_TIMEZONE` | Por defecto `America/Argentina/Buenos_Aires` |
-| `CLINIC_NAME` | Nombre visible de la clínica |
-| `SEED_DEMO` | `true` carga profesionales/turnos de ejemplo si la DB está vacía |
+## Cómo usar el sistema
 
-Después del deploy, copiá `DEFAULT_ADMIN_PASSWORD` de Variables y generá un dominio público para el servicio `turnero`.
+### Agenda y turnos
 
-Enlaces públicos:
+1. Entrá a **Agenda**. Creá un turno haciendo clic en un horario o desde **Turnos**.
+2. Elegí paciente (o crealo al vuelo), profesional, servicio y horario.
+3. El sistema rechaza solapamientos en la misma agenda.
+4. Desde el turno podés abrir **Nueva entrada** de historia clínica o **Ver historia** del paciente.
+
+### Pacientes e historia clínica
+
+- **Pacientes** lista y busca fichas. Cada ficha muestra turnos y notas clínicas.
+- Una nota puede vincularse a un turno. El buscador filtra por fecha, servicio y profesional.
+- En **Configuración** definís campos extra por servicio o por profesional (texto, número, fecha, opciones, etc.).
+- Los archivos adjuntos se guardan en `UPLOAD_DIR`. En Railway conviene un volumen en `/data` y `UPLOAD_DIR=/data/uploads`.
+- **Descargar** exporta la historia clínica en HTML.
+
+### Profesionales, horarios y servicios
+
+- **Horarios** abre un modal con ventanas semanales (por ejemplo lunes 9:00–13:00).
+- Relación N:M: un profesional atiende varios servicios y un servicio lo cubren varios profesionales.
+- **Compartir** copia el enlace público de ese profesional o de ese servicio.
+
+### Reserva pública (sin login)
 
 - Profesional: `/reservar/profesional/:slug`
 - Servicio: `/reservar/servicio/:slug`
 
-## Template Railway
+La persona elige un slot libre, deja nombre y teléfono, y queda un turno con origen `public`.
 
-Ver [template/TEMPLATE.md](template/TEMPLATE.md) y [template/marketplace.md](template/marketplace.md).
+## Producción en Railway
+
+`npm start` corre migraciones y levanta Express sirviendo el build de Vite (`server/public`).
+
+Healthcheck: `GET /health` → `{ "ok": true }`.
+
+| Variable | En Railway |
+|----------|------------|
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
+| `NODE_ENV` | `production` |
+| `DEFAULT_ADMIN_USER` | `admin` |
+| `DEFAULT_ADMIN_PASSWORD` | `${{secret(20)}}` (copiala de Variables al primer login) |
+| `CLINIC_TIMEZONE` | `America/Argentina/Buenos_Aires` |
+| `CLINIC_NAME` | Nombre de la clínica |
+| `SEED_DEMO` | `true` la primera vez; después podés pasarlo a `false` |
+| `UPLOAD_DIR` | `/data/uploads` si hay volumen montado en `/data` |
+| `CORS_ORIGIN` | `*` o el dominio público |
+
+Después del deploy:
+
+1. Generá un dominio HTTPS para el servicio **turnero**.
+2. Copiá `DEFAULT_ADMIN_PASSWORD` de las variables del servicio.
+3. Entrá con usuario `admin`.
+4. Desde **Profesionales** o **Servicios**, usá **Compartir** para el enlace de reservas.
+
+Definición IaC: [`.railway/railway.ts`](.railway/railway.ts). Guía de plantilla: [`template/TEMPLATE.md`](template/TEMPLATE.md).
+
+## Scripts
+
+| Comando | Qué hace |
+|---------|----------|
+| `npm run dev` | API + Vite en paralelo |
+| `npm run dev:api` | Solo API, con recarga |
+| `npm run dev:web` | Solo frontend |
+| `npm run build` | Build de producción |
+| `npm run migrate` | Aplica `server/db/schema.sql` |
+| `npm start` | Migraciones + servidor (producción) |
+| `npm run setup` | Postgres local, dependencias y migrate |
+
+## Publicar o actualizar el template
+
+Hace falta una cuenta Railway verificada. Categoría válida del marketplace: `Starters` (no existe `Business` en la CLI).
 
 ```bash
-railway link
-railway config plan
-railway templates create
-railway templates publish <id> --category Business \
-  --description "Agenda de turnos para clínicas, con calendario compartible" \
-  --readme-file template/marketplace.md
+railway templates create --project turnero-clinicas --environment production --json
+railway templates publish <template-id> \
+  --category Starters \
+  --description "Agenda de turnos para clínicas, con calendario compartible e historia clínica" \
+  --readme-file template/marketplace.md \
+  --json
 ```
+
+Más detalle en [`template/TEMPLATE.md`](template/TEMPLATE.md) y el texto del marketplace en [`template/marketplace.md`](template/marketplace.md).
