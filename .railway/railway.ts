@@ -9,7 +9,7 @@ import { defineRailway, github, group, postgres, project, service } from "railwa
  *   railway config apply
  *   railway templates create
  *   railway templates publish <id> --category Starters \
- *     --description "Agenda de turnos para clínicas, con calendario compartible e historia clínica" \
+ *     --description "Agenda de turnos para clínicas, con calendario e historia clínica" \
  *     --readme-file template/marketplace.md
  */
 export default defineRailway(() => {

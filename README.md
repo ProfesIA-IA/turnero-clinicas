@@ -1,6 +1,10 @@
 # Turnero Clínicas
 
-Agenda de turnos para clínicas y consultorios. Un solo servicio sirve la interfaz y la API; PostgreSQL guarda los datos. Pensado para desplegarse en un clic como [template de Railway](https://railway.com/templates).
+Agenda de turnos para clínicas y consultorios. Un solo servicio sirve la interfaz y la API; PostgreSQL guarda los datos.
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template/turnero-clinicas?utm_medium=integration&utm_source=button&utm_campaign=turnero-clinicas)
+
+Template publicado: [railway.com/deploy/turnero-clinicas](https://railway.com/deploy/turnero-clinicas)
 
 ## Qué hace
 
@@ -149,13 +153,13 @@ Definición IaC: [`.railway/railway.ts`](.railway/railway.ts). Guía de plantill
 
 ## Publicar o actualizar el template
 
-Hace falta una cuenta Railway verificada. Categoría válida del marketplace: `Starters` (no existe `Business` en la CLI).
+Hace falta una cuenta Railway verificada. Categoría válida del marketplace: `Starters` (no existe `Business` en la CLI). La descripción corta tiene un máximo de 75 caracteres.
 
 ```bash
 railway templates create --project turnero-clinicas --environment production --json
 railway templates publish <template-id> \
   --category Starters \
-  --description "Agenda de turnos para clínicas, con calendario compartible e historia clínica" \
+  --description "Agenda de turnos para clínicas, con calendario e historia clínica" \
   --readme-file template/marketplace.md \
   --json
 ```

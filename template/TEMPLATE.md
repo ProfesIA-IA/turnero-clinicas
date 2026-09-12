@@ -1,5 +1,7 @@
 # Turnero Clínicas — plantilla Railway
 
+Publicado: [railway.com/deploy/turnero-clinicas](https://railway.com/deploy/turnero-clinicas)
+
 Un clic para desplegar un turnero (UI React + API + Postgres):
 
 | Servicio | Rol |
@@ -45,7 +47,7 @@ Cuenta verificada de Railway. Desde un proyecto que ya coincida con este stack:
 railway templates create --project turnero-clinicas --environment production --json
 railway templates publish <template-id> \
   --category Starters \
-  --description "Agenda de turnos para clínicas, con calendario compartible e historia clínica" \
+  --description "Agenda de turnos para clínicas, con calendario e historia clínica" \
   --readme-file template/marketplace.md \
   --json
 ```
@@ -57,7 +59,7 @@ Para actualizar el texto público después del primer publish:
 ```bash
 railway templates update <template-id> \
   --category Starters \
-  --description "Agenda de turnos para clínicas, con calendario compartible e historia clínica" \
+  --description "Agenda de turnos para clínicas, con calendario e historia clínica" \
   --readme-file template/marketplace.md \
   --json
 ```
