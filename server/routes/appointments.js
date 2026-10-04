@@ -10,7 +10,7 @@ const router = Router();
 const APPOINTMENT_SELECT = `
   SELECT
     a.*,
-    json_build_object('id', p.id, 'name', p.name, 'phone', p.phone, 'email', p.email) AS patient,
+    json_build_object('id', p.id, 'name', p.name, 'phone', p.phone, 'email', p.email, 'dni', p.dni) AS patient,
     json_build_object('id', pr.id, 'name', pr.name, 'color', pr.color, 'share_slug', pr.share_slug) AS professional,
     json_build_object('id', s.id, 'name', s.name, 'color', s.color, 'duration_min', s.duration_min) AS service
   FROM appointments a
@@ -19,22 +19,35 @@ const APPOINTMENT_SELECT = `
   JOIN services s ON s.id = a.service_id
 `;
 
-export async function upsertPatient({ name, phone, email, notes }) {
+export async function upsertPatient({ name, dni, phone, email, notes }) {
+  const cleanDni = String(dni || '').trim();
+  if (cleanDni) {
+    const byDni = await query('SELECT * FROM patients WHERE dni = $1', [cleanDni]);
+    if (byDni.rowCount) {
+      const prev = byDni.rows[0];
+      const result = await query(
+        `UPDATE patients SET name = $1, phone = COALESCE($2, phone), email = COALESCE($3, email), notes = COALESCE($4, notes)
+         WHERE id = $5 RETURNING *`,
+        [name || prev.name, phone || null, email || null, notes || null, prev.id]
+      );
+      return result.rows[0];
+    }
+  }
   if (phone) {
     const existing = await query('SELECT * FROM patients WHERE phone = $1', [phone]);
     if (existing.rowCount) {
       const prev = existing.rows[0];
       const result = await query(
-        `UPDATE patients SET name = $1, email = COALESCE($2, email), notes = COALESCE($3, notes)
-         WHERE id = $4 RETURNING *`,
-        [name || prev.name, email || null, notes || null, prev.id]
+        `UPDATE patients SET name = $1, dni = COALESCE($2, dni), email = COALESCE($3, email), notes = COALESCE($4, notes)
+         WHERE id = $5 RETURNING *`,
+        [name || prev.name, cleanDni || null, email || null, notes || null, prev.id]
       );
       return result.rows[0];
     }
   }
   const result = await query(
-    'INSERT INTO patients (name, phone, email, notes) VALUES ($1, $2, $3, $4) RETURNING *',
-    [name || 'Paciente', phone || null, email || null, notes || null]
+    'INSERT INTO patients (name, phone, email, dni, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [name || 'Paciente', phone || null, email || null, cleanDni || null, notes || null]
   );
   return result.rows[0];
 }

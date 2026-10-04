@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { es } from 'date-fns/locale';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
@@ -99,13 +100,43 @@ export default function PublicBookingPage({ kind }) {
   ).filter((field) => field.enabled);
 
   if (done) {
+    const start = new Date(done.starts_at);
+    const when = formatInTimeZone(start, calendar.timezone, "EEEE d 'de' MMMM", { locale: es });
+    const time = formatTime(start, calendar.timezone);
     return (
       <PublicShell>
-        <div className="mx-auto max-w-lg p-8 text-center">
-          <h1 className="text-2xl">Turno reservado</h1>
-          <p className="mt-3 text-[#70757a]">
-            {done.service?.name} con {done.professional?.name} el {formatTime(new Date(done.starts_at), calendar.timezone)} hs.
-          </p>
+        <div className="min-h-full bg-[#f8f9fa]">
+          <div className="border-b border-[#dadce0] bg-[#e6f4ea] px-4 py-2 text-sm text-[#0b8043]">
+            Reserva confirmada · {calendar.clinicName}
+          </div>
+          <div className="mx-auto max-w-md px-4 py-8">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[#e6f4ea] text-2xl text-[#0b8043]">✓</div>
+            <h1 className="mt-4 text-center text-2xl">Turno reservado</h1>
+            <p className="mt-2 text-center text-sm text-[#70757a]">Guardá estos datos. Te esperamos.</p>
+            <div className="mt-6 rounded-2xl border border-[#f9ab00] bg-[#fef7e0] p-4">
+              <div className="text-sm font-medium text-[#e37400]">Horario</div>
+              <div className="mt-1 text-lg capitalize text-[#3c4043]">{when}</div>
+              <div className="text-3xl font-medium text-[#3c4043]">{time} hs</div>
+            </div>
+            <div className="mt-3 divide-y divide-[#dadce0] rounded-2xl border border-[#dadce0] bg-white">
+              <ConfirmRow label="Servicio" value={done.service?.name} />
+              <ConfirmRow label="Profesional" value={done.professional?.name} />
+              <ConfirmRow label="Paciente" value={done.patient?.name} />
+              <ConfirmRow label="DNI" value={done.patient?.dni} />
+              <ConfirmRow label="Clínica" value={calendar.clinicName} />
+            </div>
+            <button
+              className="pill-btn primary mt-6 w-full"
+              type="button"
+              onClick={() => {
+                setDone(null);
+                setSelected(null);
+                setStep('horario');
+              }}
+            >
+              Reservar otro turno
+            </button>
+          </div>
         </div>
       </PublicShell>
     );
@@ -229,7 +260,7 @@ export default function PublicBookingPage({ kind }) {
             {!slots.length && <div className="text-sm text-[#70757a]">No hay horarios disponibles este día.</div>}
           </div>
           {selected && (
-            <div className="fixed bottom-20 left-1/2 z-20 flex w-[min(100%-2rem,24rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-full border border-[#dadce0] bg-white p-2 shadow-lg">
+            <div className="fixed bottom-20 left-1/2 z-20 flex w-[min(100%-2rem,24rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-full border border-[#f9ab00] bg-[#fef7e0] p-2 shadow-lg">
               <span className="pl-3 text-sm font-medium">{formatSlotLabel(selected, kind)}</span>
               <button className="pill-btn primary" type="button" onClick={() => setStep('datos')}>
                 Continuar
@@ -240,6 +271,16 @@ export default function PublicBookingPage({ kind }) {
       </div>
     </div>
     </PublicShell>
+  );
+}
+
+function ConfirmRow({ label, value }) {
+  if (!value) return null;
+  return (
+    <div className="flex items-baseline justify-between gap-4 px-4 py-3">
+      <span className="text-sm text-[#70757a]">{label}</span>
+      <span className="text-right text-sm font-medium text-[#3c4043]">{value}</span>
+    </div>
   );
 }
 

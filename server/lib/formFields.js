@@ -1,7 +1,7 @@
 const GROUPS = {
   patient: [
     { key: 'name', label: 'Nombre', locked: true },
-    { key: 'dni', label: 'DNI' },
+    { key: 'dni', label: 'DNI', locked: true },
     { key: 'phone', label: 'Teléfono' },
     { key: 'email', label: 'Email' },
     { key: 'notes', label: 'Notas' },

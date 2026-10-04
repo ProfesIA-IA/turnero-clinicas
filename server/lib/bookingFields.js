@@ -1,5 +1,6 @@
 const BUILTINS = [
   { key: 'name', label: 'Nombre', type: 'text', enabled: true, required: true, locked: true },
+  { key: 'dni', label: 'DNI', type: 'text', enabled: true, required: true, locked: true },
   { key: 'phone', label: 'Teléfono', type: 'tel', enabled: true, required: true },
   { key: 'email', label: 'Email', type: 'email', enabled: true, required: false },
   { key: 'notes', label: 'Notas', type: 'textarea', enabled: false, required: false },
@@ -41,7 +42,7 @@ export function bookingFields(raw) {
 }
 
 export function patientFromBooking(body, fields) {
-  const patient = { name: '', phone: '', email: '', notes: '' };
+  const patient = { name: '', dni: '', phone: '', email: '', notes: '' };
   const extras = [];
   for (const field of fields) {
     if (!field.enabled) continue;
@@ -57,7 +58,7 @@ export function patientFromBooking(body, fields) {
       error.status = 400;
       throw error;
     }
-    if (field.key === 'name' || field.key === 'phone' || field.key === 'email') patient[field.key] = value;
+    if (field.key === 'name' || field.key === 'dni' || field.key === 'phone' || field.key === 'email') patient[field.key] = value;
     else if (field.key === 'notes') patient.notes = value;
     else if (value) extras.push(`${field.label}: ${value}`);
   }
