@@ -262,10 +262,12 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
-function resolveRecipient(patientEmail) {
+function resolveRecipient(address) {
+  const target = String(address || '').trim();
+  const dev = String(config.emailDevTo || '').trim();
   const sandbox = !config.emailFrom || config.emailFrom.includes('@resend.dev');
-  if (sandbox || config.nodeEnv !== 'production') {
-    return config.emailDevTo || null;
-  }
-  return patientEmail || null;
+  if (sandbox || config.nodeEnv !== 'production') return dev || null;
+  if (!target) return null;
+  if (dev && target.toLowerCase() === dev.toLowerCase()) return null;
+  return target;
 }
