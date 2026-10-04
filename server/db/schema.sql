@@ -213,6 +213,12 @@ ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS chatbot_webhook_secret TEXT
 ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS chatbot_model TEXT NOT NULL DEFAULT 'gpt-4.1-mini';
 ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS chatbot_prompt TEXT NOT NULL DEFAULT '';
 
+CREATE TABLE IF NOT EXISTS chatbot_pauses (
+  phone TEXT PRIMARY KEY,
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS chatbot_threads (
   phone TEXT PRIMARY KEY,
   messages JSONB NOT NULL DEFAULT '[]'::jsonb,

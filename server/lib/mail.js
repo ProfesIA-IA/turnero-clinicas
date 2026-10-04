@@ -105,6 +105,57 @@ export async function notifyUsersOfAppointment(appointment) {
   );
 }
 
+export async function notifyAppointmentUpdated(appointment) {
+  const when = formatInTimeZone(new Date(appointment.starts_at), config.clinicTimezone, "EEEE d 'de' MMMM, HH:mm", {
+    locale: es,
+  });
+  const clinic = config.clinicName || 'la clínica';
+  const rows = [
+    ['Paciente', appointment.patient?.name || '—'],
+    ['Cuándo', when],
+    ['Profesional', appointment.professional?.name || '—'],
+    ['Servicio', appointment.service?.name || '—'],
+    ['Estado', appointment.status || '—'],
+  ];
+  const sends = [];
+  if (appointment.patient?.email) {
+    sends.push(sendMail({
+      to: appointment.patient.email,
+      subject: `Turno modificado · ${clinic}`,
+      text: [`Hola ${appointment.patient.name || ''},`, 'Tu turno fue modificado.', ...rows.map(([label, value]) => `${label}: ${value}`)].join('\n'),
+      html: layout({
+        clinic,
+        title: 'Turno modificado',
+        intro: `Hola ${appointment.patient.name || ''}, tu turno fue modificado.`,
+        rows,
+      }),
+    }));
+  }
+  const staff = await query(
+    `SELECT name, email FROM users
+     WHERE active = true AND email IS NOT NULL AND email <> ''
+       AND (
+         (role = 'profesional' AND professional_id = $1)
+         OR role = 'secretaria'
+       )`,
+    [appointment.professional_id]
+  );
+  for (const user of staff.rows) {
+    sends.push(sendMail({
+      to: user.email,
+      subject: `Turno modificado · ${clinic}`,
+      text: [`Hola ${user.name},`, 'Se modificó un turno.', ...rows.map(([label, value]) => `${label}: ${value}`)].join('\n'),
+      html: layout({
+        clinic,
+        title: 'Turno modificado',
+        intro: `Hola ${user.name}, se modificó un turno.`,
+        rows,
+      }),
+    }));
+  }
+  await Promise.all(sends.map((job) => job.catch((err) => console.error('Aviso de turno no enviado:', err.message))));
+}
+
 export async function sendPasswordCredentials(user, password, loginUrl) {
   const clinic = config.clinicName || 'Turnero';
   const text = [

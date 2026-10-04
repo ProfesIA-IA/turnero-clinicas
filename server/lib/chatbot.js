@@ -49,9 +49,28 @@ export function chatModel(value) {
   return CHAT_MODELS.includes(value) ? value : CHAT_MODELS[0];
 }
 
+export async function isBotEnabled(phone) {
+  const key = String(phone || '').replace(/\D/g, '');
+  if (!key) return true;
+  const rows = await query('SELECT enabled FROM chatbot_pauses WHERE phone = $1', [key]);
+  if (!rows.rowCount) return true;
+  return rows.rows[0].enabled !== false;
+}
+
+export async function setBotEnabled(phone, enabled) {
+  const key = String(phone || '').replace(/\D/g, '');
+  await query(
+    `INSERT INTO chatbot_pauses (phone, enabled, updated_at)
+     VALUES ($1, $2, now())
+     ON CONFLICT (phone) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = now()`,
+    [key, Boolean(enabled)]
+  );
+}
+
 export async function answerChat(text, origin, phone) {
   const settings = await getClinicSettings();
   if (settings.chatbot_enabled === false) return '';
+  if (!(await isBotEnabled(phone))) return '';
   if (!config.openaiApiKey) return 'El asistente todavía no está configurado. Probá de nuevo más tarde.';
   const facts = await clinicFacts(settings, origin);
   const prompt = settings.chatbot_prompt?.trim() || DEFAULT_CHAT_PROMPT;

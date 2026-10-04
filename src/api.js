@@ -57,6 +57,10 @@ export const api = {
   saveSettings: (body) => request('/api/settings', { method: 'PUT', body }),
   kapsoNumbers: () => request('/api/kapso/numeros').then((res) => res.data || []),
   connectKapso: (phoneNumberId) => request('/api/kapso/conectar', { method: 'POST', body: { phoneNumberId } }),
+  inbox: (status = 'active') => request(`/api/kapso/conversaciones${status && status !== 'all' ? `?status=${status}` : ''}`).then((res) => res.data || []),
+  inboxMessages: (id) => request(`/api/kapso/conversaciones/${id}/mensajes`).then((res) => res.data || []),
+  inboxReply: (id, body) => request(`/api/kapso/conversaciones/${id}/mensaje`, { method: 'POST', body }),
+  setChatbotForPhone: (phone, botEnabled) => request(`/api/kapso/contactos/${phone}`, { method: 'PUT', body: { botEnabled } }),
   professionals: () => request('/api/professionals'),
   professional: (id) => request(`/api/professionals/${id}`),
   saveProfessional: (id, body) =>

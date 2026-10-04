@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { assertSlotFree } from '../lib/conflicts.js';
-import { notifyUsersOfAppointment, sendAppointmentEmail } from '../lib/mail.js';
+import { notifyAppointmentUpdated, notifyUsersOfAppointment, sendAppointmentEmail } from '../lib/mail.js';
 import { recordScope } from '../lib/permissions.js';
 import { likeTerm, pageRequest } from '../lib/paging.js';
 
@@ -18,6 +18,25 @@ const APPOINTMENT_SELECT = `
   JOIN professionals pr ON pr.id = a.professional_id
   JOIN services s ON s.id = a.service_id
 `;
+
+async function syncPatient(patientId, patient) {
+  if (!patientId || !patient) return;
+  await query(
+    `UPDATE patients
+     SET name = COALESCE(NULLIF($1, ''), name),
+         phone = COALESCE(NULLIF($2, ''), phone),
+         email = COALESCE(NULLIF($3, ''), email),
+         dni = COALESCE(NULLIF($4, ''), dni)
+     WHERE id = $5`,
+    [
+      String(patient.name || '').trim(),
+      String(patient.phone || '').trim(),
+      String(patient.email || '').trim(),
+      String(patient.dni || '').trim(),
+      patientId,
+    ]
+  );
+}
 
 export async function upsertPatient({ name, dni, phone, email, notes }) {
   const cleanDni = String(dni || '').trim();
@@ -172,7 +191,8 @@ router.put('/:id', async (req, res, next) => {
     let patientId = prev.patient_id;
     if (bodyPatientId) {
       patientId = bodyPatientId;
-    } else if (patient?.name || patient?.phone) {
+      await syncPatient(patientId, patient);
+    } else if (patient?.name || patient?.phone || patient?.email) {
       const saved = await upsertPatient(patient);
       patientId = saved.id;
     }
@@ -191,7 +211,9 @@ router.put('/:id', async (req, res, next) => {
        WHERE id = $8`,
       [patientId, professionalId, serviceId, startsAt, endsAt, status, notes, req.params.id]
     );
-    res.json({ data: await getAppointment(req.params.id) });
+    const updated = await getAppointment(req.params.id);
+    notifyAppointmentUpdated(updated).catch((err) => console.error('Email de turno no enviado:', err.message));
+    res.json({ data: updated });
   } catch (err) {
     next(err);
   }
@@ -257,7 +279,9 @@ export async function createAppointment(body, source = 'staff') {
   await assertSlotFree({ professionalId, startsAt: start, endsAt: end });
 
   let patientId = body.patientId || null;
-  if (!patientId && (patient?.name || patient?.phone)) {
+  if (patientId && patient) {
+    await syncPatient(patientId, patient);
+  } else if (patient?.name || patient?.phone || patient?.dni) {
     const saved = await upsertPatient(patient);
     patientId = saved.id;
   }

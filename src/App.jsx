@@ -9,6 +9,7 @@ import ProfessionalsPage from './pages/ProfessionalsPage';
 import ServicesPage from './pages/ServicesPage';
 import SettingsPage from './pages/SettingsPage';
 import ChatbotPage from './pages/ChatbotPage';
+import InboxPage from './pages/InboxPage';
 import CamposPage from './pages/CamposPage';
 import PatientsPage from './pages/PatientsPage';
 import PatientDetailPage from './pages/PatientDetailPage';
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="usuarios" element={<Guard perm="usuarios.ver"><UsersPage /></Guard>} />
         <Route path="configuracion" element={<Guard perm="configuracion.ver"><SettingsPage /></Guard>} />
         <Route path="chatbot" element={<Guard perm="configuracion.ver"><ChatbotPage /></Guard>} />
+        <Route path="mensajes" element={<Guard perm="configuracion.ver"><InboxPage /></Guard>} />
         <Route path="campos" element={<Guard perm="configuracion.ver"><CamposPage /></Guard>} />
         <Route path="perfil" element={<ProfilePage />} />
       </Route>
