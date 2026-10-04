@@ -38,11 +38,12 @@ function timeLabel(value) {
 
 export const CHAT_MODELS = ['gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini', 'gpt-4o'];
 
-export const DEFAULT_CHAT_PROMPT = `Sos un asistente digital de la clínica, no una persona. Decilo con naturalidad la primera vez que hablás.
-Respondé en español, breve y cercano.
-En el primer mensaje saludá una sola vez, presentate como asistente digital y preguntá el nombre.
+export const DEFAULT_CHAT_PROMPT = `Sos un asistente digital de la clínica, no una persona. Decilo con naturalidad la primera vez que hablás 😊
+Respondé en español, breve y cercano, con emojis en cada mensaje ✨
+En el primer mensaje saludá una sola vez 👋, presentate como asistente digital 🤖 y preguntá el nombre.
 Cuando te digan el nombre, usalo en los mensajes siguientes. No vuelvas a saludar ni a presentarte si la conversación ya empezó.
-Usá solo los datos de la clínica que te paso. Si piden un turno, mandá el link de reserva. No inventes precios, horarios ni profesionales.`;
+Cuando cuentes qué hay para atenderse, decí solo los nombres de los servicios 🩺, los nombres de los profesionales 👩‍⚕️ y los horarios de atención 🕒. No menciones precios, duración ni códigos.
+Si piden un turno, además de eso mandá el link de reserva 📅. No inventes horarios ni profesionales.`;
 
 export function chatModel(value) {
   return CHAT_MODELS.includes(value) ? value : CHAT_MODELS[0];
@@ -112,15 +113,12 @@ async function clinicFacts(settings, origin) {
      FROM schedules s JOIN professionals p ON p.id = s.professional_id
      WHERE p.active ORDER BY p.name, s.weekday, s.start_time`
   );
-  const serviceLines = services.rows.map((row) => {
-    const price = row.price != null ? `, $${Number(row.price)}` : '';
-    const link = base && row.share_enabled && row.share_slug ? `, reserva ${base}/reservar/servicio/${row.share_slug}` : '';
-    return `- ${row.name}: ${row.duration_min} min${price}${link}`;
-  });
-  const professionalLines = professionals.rows.map((row) => {
-    const link = base && row.share_enabled && row.share_slug ? `, reserva ${base}/reservar/profesional/${row.share_slug}` : '';
-    return `- ${row.name}${link}`;
-  });
+  const serviceLines = services.rows.map((row) => `- ${row.name}`);
+  const professionalLines = professionals.rows.map((row) => `- ${row.name}`);
+  const booking = [
+    ...services.rows.filter((row) => base && row.share_enabled && row.share_slug).map((row) => `${base}/reservar/servicio/${row.share_slug}`),
+    ...professionals.rows.filter((row) => base && row.share_enabled && row.share_slug).map((row) => `${base}/reservar/profesional/${row.share_slug}`),
+  ];
   const hours = new Map();
   for (const row of schedules.rows) {
     const line = `${DAYS[row.weekday]} ${timeLabel(row.start_time)}-${timeLabel(row.end_time)}`;
@@ -132,7 +130,8 @@ async function clinicFacts(settings, origin) {
     `Agenda: ${hourLabel(settings.start_hour)} a ${hourLabel(settings.end_hour)}`,
     `Servicios:\n${serviceLines.join('\n') || '- ninguno'}`,
     `Profesionales:\n${professionalLines.join('\n') || '- ninguno'}`,
-    `Horarios:\n${hourLines.join('\n') || '- sin horarios cargados'}`,
+    `Horarios de atención:\n${hourLines.join('\n') || '- sin horarios cargados'}`,
+    `Link de reserva, solo si piden un turno:\n${booking[0] || '- sin link publicado'}`,
   ].join('\n');
 }
 
