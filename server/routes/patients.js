@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
+import { recordScope } from '../lib/permissions.js';
 
 const router = Router();
 
@@ -9,10 +10,17 @@ router.get('/', async (req, res, next) => {
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
     const params = [];
     let sql = 'SELECT * FROM patients';
+    const where = [];
+    const scope = recordScope(req.user);
+    if (scope?.patientId != null) {
+      params.push(scope.patientId);
+      where.push(`id = $${params.length}`);
+    }
     if (q) {
       params.push(`%${q}%`);
-      sql += ` WHERE name ILIKE $${params.length}`;
+      where.push(`name ILIKE $${params.length}`);
     }
+    if (where.length) sql += ` WHERE ${where.join(' AND ')}`;
     params.push(limit);
     sql += ` ORDER BY name ASC LIMIT $${params.length}`;
     const result = await query(sql, params);
@@ -24,6 +32,10 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
+    const scope = recordScope(req.user);
+    if (scope?.patientId != null && Number(req.params.id) !== scope.patientId) {
+      return res.status(404).json({ error: 'Paciente no encontrado' });
+    }
     const result = await query('SELECT * FROM patients WHERE id = $1', [req.params.id]);
     if (!result.rowCount) return res.status(404).json({ error: 'Paciente no encontrado' });
     const appointments = await query(

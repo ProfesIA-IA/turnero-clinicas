@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { availabilityForDay, getClinicSettings } from '../lib/availability.js';
+import { recordScope } from '../lib/permissions.js';
 
 const router = Router();
 
@@ -25,7 +26,15 @@ router.get('/', async (req, res, next) => {
       JOIN services s ON s.id = a.service_id
       WHERE a.ends_at > $1 AND a.starts_at < $2 AND a.status <> 'CANCELADO'
     `;
-    if (ids.length) {
+    const scope = recordScope(req.user);
+    if (scope?.patientId != null) {
+      params.push(scope.patientId);
+      appointmentSql += ` AND a.patient_id = $${params.length}`;
+    }
+    if (scope?.professionalId != null) {
+      params.push(scope.professionalId);
+      appointmentSql += ` AND a.professional_id = $${params.length}`;
+    } else if (ids.length) {
       params.push(ids);
       appointmentSql += ` AND a.professional_id = ANY($${params.length}::int[])`;
     }

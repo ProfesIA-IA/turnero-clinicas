@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { Router } from 'express';
+import { recordScope } from '../lib/permissions.js';
 import multer from 'multer';
 import { query } from '../db/pool.js';
 import { getClinicSettings } from '../lib/availability.js';
@@ -120,8 +121,18 @@ router.delete('/fields/:id', async (req, res, next) => {
   }
 });
 
+function denyOtherPatient(req, res) {
+  const scope = recordScope(req.user);
+  if (scope?.patientId != null && Number(req.params.patientId) !== scope.patientId) {
+    res.status(404).json({ error: 'Paciente no encontrado' });
+    return true;
+  }
+  return false;
+}
+
 router.get('/patients/:patientId/notes', async (req, res, next) => {
   try {
+    if (denyOtherPatient(req, res)) return;
     const patient = await query('SELECT id FROM patients WHERE id = $1', [req.params.patientId]);
     if (!patient.rowCount) return res.status(404).json({ error: 'Paciente no encontrado' });
     const notes = await query(
@@ -136,6 +147,7 @@ router.get('/patients/:patientId/notes', async (req, res, next) => {
 
 router.get('/patients/:patientId/export', async (req, res, next) => {
   try {
+    if (denyOtherPatient(req, res)) return;
     const patient = await query('SELECT * FROM patients WHERE id = $1', [req.params.patientId]);
     if (!patient.rowCount) return res.status(404).json({ error: 'Paciente no encontrado' });
     const notes = await query(
@@ -156,6 +168,7 @@ router.get('/patients/:patientId/export', async (req, res, next) => {
 
 router.post('/patients/:patientId/notes', async (req, res, next) => {
   try {
+    if (denyOtherPatient(req, res)) return;
     const patient = await query('SELECT id FROM patients WHERE id = $1', [req.params.patientId]);
     if (!patient.rowCount) return res.status(404).json({ error: 'Paciente no encontrado' });
     const payload = await buildNotePayload(req.body, Number(req.params.patientId));

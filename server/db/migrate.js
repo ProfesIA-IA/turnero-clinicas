@@ -24,12 +24,19 @@ async function runSchema() {
 async function ensureAdmin() {
   const existing = await query('SELECT id FROM users WHERE username = $1', [config.defaultAdminUser]);
   if (existing.rowCount) {
+    await query(
+      `UPDATE users
+       SET role = 'admin', is_system = true, active = true, name = COALESCE(NULLIF(name, ''), 'Administrador')
+       WHERE id = $1`,
+      [existing.rows[0].id]
+    );
     console.log(`OK: admin listo (${config.defaultAdminUser})`);
     return;
   }
   const hash = await bcrypt.hash(config.defaultAdminPassword, 10);
   await query(
-    'INSERT INTO users (username, password_hash, name) VALUES ($1, $2, $3)',
+    `INSERT INTO users (username, password_hash, name, role, is_system, permissions)
+     VALUES ($1, $2, $3, 'admin', true, '{}'::jsonb)`,
     [config.defaultAdminUser, hash, 'Administrador']
   );
   console.log(`OK: admin creado (${config.defaultAdminUser})`);

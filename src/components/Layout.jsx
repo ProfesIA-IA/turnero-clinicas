@@ -7,22 +7,25 @@ import {
   Settings,
   Stethoscope,
   UserRound,
+  Shield,
   Users,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../auth';
 import { useClinic } from '../clinic';
+import { can } from '../lib/permissions';
 import PoweredBy from './PoweredBy';
 import Sitemap from './Sitemap';
 
 const NAV = [
-  { to: '/', label: 'Agenda', icon: CalendarDays, end: true },
-  { to: '/turnos', label: 'Turnos', icon: Clock3 },
-  { to: '/pacientes', label: 'Pacientes', icon: Users },
-  { to: '/profesionales', label: 'Profesionales', icon: UserRound },
-  { to: '/servicios', label: 'Servicios', icon: Stethoscope },
-  { to: '/configuracion', label: 'Configuración', icon: Settings },
+  { to: '/', label: 'Agenda', icon: CalendarDays, end: true, perm: 'agenda' },
+  { to: '/turnos', label: 'Turnos', icon: Clock3, perm: 'turnos' },
+  { to: '/pacientes', label: 'Pacientes', icon: Users, perm: 'pacientes' },
+  { to: '/profesionales', label: 'Profesionales', icon: UserRound, perm: 'profesionales' },
+  { to: '/servicios', label: 'Servicios', icon: Stethoscope, perm: 'servicios' },
+  { to: '/usuarios', label: 'Usuarios', icon: Shield, perm: 'usuarios' },
+  { to: '/configuracion', label: 'Configuración', icon: Settings, perm: 'configuracion' },
 ];
 
 export default function Layout() {
@@ -67,7 +70,7 @@ export default function Layout() {
               </button>
             </div>
             <nav>
-              {NAV.map((item) => (
+              {NAV.filter((item) => can(user, item.perm)).map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}

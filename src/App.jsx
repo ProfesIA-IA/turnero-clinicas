@@ -11,6 +11,8 @@ import SettingsPage from './pages/SettingsPage';
 import PatientsPage from './pages/PatientsPage';
 import PatientDetailPage from './pages/PatientDetailPage';
 import PublicBookingPage from './pages/PublicBookingPage';
+import UsersPage from './pages/UsersPage';
+import { can, firstAllowedPath } from './lib/permissions';
 
 export default function App() {
   return (
@@ -28,14 +30,15 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<CalendarPage />} />
-        <Route path="turnos" element={<AppointmentsPage />} />
-        <Route path="pacientes" element={<PatientsPage />} />
-        <Route path="pacientes/:id" element={<PatientDetailPage />} />
-        <Route path="profesionales" element={<ProfessionalsPage />} />
+        <Route index element={<Guard perm="agenda"><CalendarPage /></Guard>} />
+        <Route path="turnos" element={<Guard perm="turnos"><AppointmentsPage /></Guard>} />
+        <Route path="pacientes" element={<Guard perm="pacientes"><PatientsPage /></Guard>} />
+        <Route path="pacientes/:id" element={<Guard perm="pacientes"><PatientDetailPage /></Guard>} />
+        <Route path="profesionales" element={<Guard perm="profesionales"><ProfessionalsPage /></Guard>} />
         <Route path="profesionales/:id" element={<ProfessionalScheduleRedirect />} />
-        <Route path="servicios" element={<ServicesPage />} />
-        <Route path="configuracion" element={<SettingsPage />} />
+        <Route path="servicios" element={<Guard perm="servicios"><ServicesPage /></Guard>} />
+        <Route path="usuarios" element={<Guard perm="usuarios"><UsersPage /></Guard>} />
+        <Route path="configuracion" element={<Guard perm="configuracion"><SettingsPage /></Guard>} />
       </Route>
     </Routes>
   );
@@ -47,6 +50,12 @@ function RequireAuth({ children }) {
     return <div className="grid min-h-full place-items-center text-[#70757a]">Cargando…</div>;
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return children;
+}
+
+function Guard({ perm, children }) {
+  const { user } = useAuth();
+  if (!can(user, perm)) return <Navigate to={firstAllowedPath(user)} replace />;
   return children;
 }
 

@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import { assertRuntimeConfig, config } from './config.js';
 import { requireAuth, userFromToken, readToken } from './middleware/auth.js';
+import { requirePermission } from './lib/permissions.js';
 import authRouter from './routes/auth.js';
 import professionalsRouter from './routes/professionals.js';
 import servicesRouter from './routes/services.js';
@@ -16,6 +17,7 @@ import settingsRouter from './routes/settings.js';
 import agendaRouter from './routes/agenda.js';
 import patientsRouter from './routes/patients.js';
 import clinicalRouter from './routes/clinical.js';
+import usersRouter from './routes/users.js';
 
 assertRuntimeConfig();
 
@@ -46,15 +48,17 @@ app.use('/api/auth', async (req, res, next) => {
   if (user) req.user = user;
   next();
 }, authRouter);
-app.use('/api/professionals', requireAuth, professionalsRouter);
-app.use('/api/services', requireAuth, servicesRouter);
-app.use('/api/schedules', requireAuth, schedulesRouter);
-app.use('/api/blocks', requireAuth, blocksRouter);
-app.use('/api/appointments', requireAuth, appointmentsRouter);
-app.use('/api/patients', requireAuth, patientsRouter);
-app.use('/api/clinical', requireAuth, clinicalRouter);
-app.use('/api/settings', requireAuth, settingsRouter);
-app.use('/api/agenda', requireAuth, agendaRouter);
+const catalogReads = ['agenda', 'turnos', 'usuarios'];
+app.use('/api/professionals', requireAuth, requirePermission('profesionales', { readsAlso: catalogReads }), professionalsRouter);
+app.use('/api/services', requireAuth, requirePermission('servicios', { readsAlso: catalogReads }), servicesRouter);
+app.use('/api/schedules', requireAuth, requirePermission('profesionales', { readsAlso: ['agenda', 'turnos'] }), schedulesRouter);
+app.use('/api/blocks', requireAuth, requirePermission('agenda'), blocksRouter);
+app.use('/api/appointments', requireAuth, requirePermission('turnos', { readsAlso: ['agenda'] }), appointmentsRouter);
+app.use('/api/patients', requireAuth, requirePermission('pacientes', { readsAlso: ['agenda', 'turnos', 'usuarios'] }), patientsRouter);
+app.use('/api/clinical', requireAuth, requirePermission('pacientes'), clinicalRouter);
+app.use('/api/settings', requireAuth, requirePermission('configuracion', { readsAlso: ['agenda', 'turnos', 'usuarios'] }), settingsRouter);
+app.use('/api/agenda', requireAuth, requirePermission('agenda'), agendaRouter);
+app.use('/api/users', requireAuth, requirePermission('usuarios'), usersRouter);
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });

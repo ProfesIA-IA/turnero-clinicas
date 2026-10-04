@@ -18,6 +18,11 @@ export async function login(username, password) {
     err.status = 401;
     throw err;
   }
+  if (user.active === false) {
+    const err = new Error('Usuario desactivado');
+    err.status = 403;
+    throw err;
+  }
   const token = crypto.randomBytes(32).toString('hex');
   const expires = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
   await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, $3)', [
@@ -53,6 +58,12 @@ export function publicUser(user) {
     id: user.id,
     username: user.username,
     name: user.name,
+    role: user.role || 'admin',
+    permissions: user.permissions || {},
+    professionalId: user.professional_id || null,
+    patientId: user.patient_id || null,
+    active: user.active !== false,
+    isSystem: Boolean(user.is_system),
   };
 }
 

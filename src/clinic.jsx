@@ -18,16 +18,18 @@ export function ClinicProvider({ children }) {
     setLoading(true);
     try {
       const [settingsRes, proRes, serviceRes] = await Promise.all([
-        api.settings(),
-        api.professionals(),
-        api.services(),
+        api.settings().catch(() => ({ data: null })),
+        api.professionals().catch(() => ({ data: [] })),
+        api.services().catch(() => ({ data: [] })),
       ]);
+      const pros = proRes.data || [];
+      const svcs = serviceRes.data || [];
       setSettings(settingsRes.data);
-      setProfessionals(proRes.data);
-      setServices(serviceRes.data);
+      setProfessionals(pros);
+      setServices(svcs);
       setEnabledIds((prev) => {
-        if (prev.length) return prev.filter((id) => proRes.data.some((item) => item.id === id));
-        return proRes.data.filter((item) => item.active).map((item) => item.id);
+        if (prev.length) return prev.filter((id) => pros.some((item) => item.id === id));
+        return pros.filter((item) => item.active).map((item) => item.id);
       });
     } finally {
       setLoading(false);

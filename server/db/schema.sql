@@ -178,3 +178,13 @@ CREATE TABLE IF NOT EXISTS clinical_files (
 );
 
 CREATE INDEX IF NOT EXISTS clinical_files_note_idx ON clinical_files (note_id);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'secretaria';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS professional_id INT REFERENCES professionals(id) ON DELETE SET NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS patient_id INT REFERENCES patients(id) ON DELETE SET NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_system BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'secretaria', 'profesional', 'paciente'));

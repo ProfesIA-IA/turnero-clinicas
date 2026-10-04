@@ -125,4 +125,9 @@ export const api = {
   publicCalendar: (kind, slug) => request(`/api/public/${kind}/${slug}`),
   publicSlots: (kind, slug, params = '') => request(`/api/public/${kind}/${slug}/slots${params}`),
   publicBook: (kind, slug, body) => request(`/api/public/${kind}/${slug}/book`, { method: 'POST', body }),
+  usersMeta: () => request('/api/users/meta'),
+  users: () => request('/api/users'),
+  saveUser: (id, body) =>
+    id ? request(`/api/users/${id}`, { method: 'PUT', body }) : request('/api/users', { method: 'POST', body }),
+  deleteUser: (id) => request(`/api/users/${id}`, { method: 'DELETE' }),
 };

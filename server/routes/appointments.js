@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { assertSlotFree } from '../lib/conflicts.js';
+import { recordScope } from '../lib/permissions.js';
 
 const router = Router();
 
@@ -36,6 +37,14 @@ export async function upsertPatient({ name, phone, email, notes }) {
   return result.rows[0];
 }
 
+function visibleAppointment(user, row) {
+  const scope = recordScope(user);
+  if (!scope) return true;
+  if (scope.patientId != null && Number(row.patient_id) !== scope.patientId) return false;
+  if (scope.professionalId != null && Number(row.professional_id) !== scope.professionalId) return false;
+  return true;
+}
+
 async function getAppointment(id) {
   const result = await query(`${APPOINTMENT_SELECT} WHERE a.id = $1`, [id]);
   return result.rows[0] || null;
@@ -66,6 +75,15 @@ router.get('/', async (req, res, next) => {
       params.push(status);
       where.push(`a.status = $${params.length}`);
     }
+    const scope = recordScope(req.user);
+    if (scope?.patientId != null) {
+      params.push(scope.patientId);
+      where.push(`a.patient_id = $${params.length}`);
+    }
+    if (scope?.professionalId != null) {
+      params.push(scope.professionalId);
+      where.push(`a.professional_id = $${params.length}`);
+    }
     const sql = `${APPOINTMENT_SELECT} ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY a.starts_at`;
     const result = await query(sql, params);
     res.json({ data: result.rows });
@@ -77,7 +95,7 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const row = await getAppointment(req.params.id);
-    if (!row) return res.status(404).json({ error: 'Turno no encontrado' });
+    if (!row || !visibleAppointment(req.user, row)) return res.status(404).json({ error: 'Turno no encontrado' });
     res.json({ data: row });
   } catch (err) {
     next(err);
@@ -96,7 +114,9 @@ router.post('/', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const current = await query('SELECT * FROM appointments WHERE id = $1', [req.params.id]);
-    if (!current.rowCount) return res.status(404).json({ error: 'Turno no encontrado' });
+    if (!current.rowCount || !visibleAppointment(req.user, current.rows[0])) {
+      return res.status(404).json({ error: 'Turno no encontrado' });
+    }
     const prev = current.rows[0];
     const {
       professionalId = prev.professional_id,
@@ -139,6 +159,10 @@ router.put('/:id', async (req, res, next) => {
 
 router.put('/:id/cancelar', async (req, res, next) => {
   try {
+    const current = await getAppointment(req.params.id);
+    if (!current || !visibleAppointment(req.user, current)) {
+      return res.status(404).json({ error: 'Turno no encontrado' });
+    }
     await query(
       `UPDATE appointments SET status = 'CANCELADO', updated_at = now() WHERE id = $1`,
       [req.params.id]
@@ -151,6 +175,10 @@ router.put('/:id/cancelar', async (req, res, next) => {
 
 router.delete('/:id', async (req, res, next) => {
   try {
+    const current = await getAppointment(req.params.id);
+    if (!current || !visibleAppointment(req.user, current)) {
+      return res.status(404).json({ error: 'Turno no encontrado' });
+    }
     await query('DELETE FROM appointments WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
