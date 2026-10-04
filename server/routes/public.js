@@ -59,6 +59,7 @@ router.get('/profesional/:slug', async (req, res, next) => {
         clinicName: settings.name,
         timezone: settings.timezone,
         bookingFields: bookingFields(settings.booking_fields),
+        bookingIntro: settings.booking_intro || '',
       },
     });
   } catch (err) {
@@ -77,6 +78,7 @@ router.get('/servicio/:slug', async (req, res, next) => {
         clinicName: settings.name,
         timezone: settings.timezone,
         bookingFields: bookingFields(settings.booking_fields),
+        bookingIntro: settings.booking_intro || '',
       },
     });
   } catch (err) {

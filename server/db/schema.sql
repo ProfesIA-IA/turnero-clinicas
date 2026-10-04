@@ -204,6 +204,8 @@ CREATE TABLE IF NOT EXISTS password_resets (
 );
 
 ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS booking_fields JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS booking_intro TEXT NOT NULL DEFAULT '';
+ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS form_fields JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS extra_field_defs (
   id SERIAL PRIMARY KEY,
@@ -221,6 +223,7 @@ CREATE TABLE IF NOT EXISTS extra_field_defs (
 CREATE INDEX IF NOT EXISTS extra_field_defs_entity_idx ON extra_field_defs (entity, sort_order, id);
 
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS extra JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS dni TEXT;
 ALTER TABLE professionals ADD COLUMN IF NOT EXISTS extra JSONB NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE services ADD COLUMN IF NOT EXISTS extra JSONB NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS extra JSONB NOT NULL DEFAULT '{}'::jsonb;

@@ -105,7 +105,7 @@ export const api = {
     }
     const blob = await res.blob();
     const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
-    const filename = match?.[1] || 'historia-clinica.html';
+    const filename = match?.[1] || 'historia-clinica.pdf';
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

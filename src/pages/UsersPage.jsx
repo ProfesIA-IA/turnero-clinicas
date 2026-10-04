@@ -3,7 +3,7 @@ import { api } from '../api';
 import { can, ROLE_LABELS } from '../lib/permissions';
 import { useAuth } from '../auth';
 import { EntityPhoto, PhotoField } from '../components/PhotoField';
-import { Pager, usePaged } from '../components/Pagination';
+import { Pager } from '../components/Pagination';
 import ExtraFields from '../components/ExtraFields';
 
 const EMPTY = {
@@ -29,24 +29,41 @@ export default function UsersPage() {
   const [patients, setPatients] = useState([]);
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState('');
-  const paged = usePaged(users);
-
-  async function load() {
-    const [userRes, metaRes, proRes, patientRes] = await Promise.all([
-      api.users(),
-      api.usersMeta(),
-      api.professionals().catch(() => ({ data: [] })),
-      api.patients('?limit=200').catch(() => ({ data: [] })),
-    ]);
-    setUsers(userRes.data);
-    setMeta(metaRes);
-    setProfessionals(proRes.data || []);
-    setPatients(patientRes.data || []);
-  }
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
+  const limit = 8;
 
   useEffect(() => {
-    load().catch((err) => setError(err.message));
+    setPage(1);
+  }, [q]);
+
+  useEffect(() => {
+    Promise.all([
+      api.usersMeta(),
+      api.professionals().catch(() => ({ data: [] })),
+    ])
+      .then(([metaRes, proRes]) => {
+        setMeta(metaRes);
+        setProfessionals(proRes.data || []);
+      })
+      .catch((err) => setError(err.message));
   }, []);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (q.trim()) params.set('q', q.trim());
+      api.users(`?${params.toString()}`)
+        .then((res) => {
+          setUsers(res.data || []);
+          setTotal(res.total || 0);
+        })
+        .catch((err) => setError(err.message));
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [q, page, reloadKey]);
 
   return (
     <div className="h-full overflow-auto p-4 sm:p-6">
@@ -55,6 +72,12 @@ export default function UsersPage() {
           <h1 className="text-2xl">Usuarios</h1>
           <p className="text-sm text-[#70757a]">Altas de secretaría, profesionales y pacientes, con permisos por sección.</p>
         </div>
+        <input
+          className="h-9 w-full min-w-0 rounded-full border border-[#dadce0] px-4 text-sm outline-none focus:border-[#1a73e8] sm:w-auto sm:min-w-[240px]"
+          placeholder="Buscar por nombre…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
         {can(current, 'usuarios.crear') && (
           <button
             className="pill-btn primary"
@@ -67,7 +90,7 @@ export default function UsersPage() {
       </div>
       {error && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
       <div className="grid gap-3">
-        {paged.items.map((user) => (
+        {users.map((user) => (
           <div key={user.id} className="flex flex-col gap-3 rounded-xl border border-[#dadce0] p-4 sm:flex-row sm:items-center">
             <EntityPhoto
               kind="users"
@@ -100,7 +123,7 @@ export default function UsersPage() {
                     onClick={async () => {
                       if (!window.confirm(`¿Eliminar a ${user.name}?`)) return;
                       await api.deleteUser(user.id);
-                      await load();
+                      setReloadKey((value) => value + 1);
                     }}
                   >
                     Eliminar
@@ -111,7 +134,7 @@ export default function UsersPage() {
           </div>
         ))}
       </div>
-      <Pager page={paged.page} pages={paged.pages} total={paged.total} pageSize={paged.pageSize} onPage={paged.setPage} />
+      <Pager page={page} pages={Math.max(1, Math.ceil(total / limit))} total={total} pageSize={limit} onPage={setPage} />
       {editing && meta && (
         <UserForm
           form={editing}
@@ -122,7 +145,7 @@ export default function UsersPage() {
           onSave={async (body, photo) => {
             const saved = await api.saveUser(editing.id, body);
             if (photo) await api.uploadPhoto('users', saved.data.id, photo);
-            await load();
+            setReloadKey((value) => value + 1);
             setEditing(null);
           }}
         />

@@ -10,9 +10,16 @@ import { api } from '../api';
 import { useClinic } from '../clinic';
 import { atMinutes, monthTitle, shareUrl, ymd } from '../lib/calendar';
 
+const STATUSES = [
+  { id: 'RESERVADO', label: 'Reservado', color: '#1a73e8' },
+  { id: 'CONFIRMADO', label: 'Confirmado', color: '#0b8043' },
+  { id: 'COMPLETADO', label: 'Completado', color: '#5f6368' },
+  { id: 'CANCELADO', label: 'Cancelado', color: '#d93025' },
+];
+
 export default function CalendarPage() {
   const { settings, professionals, services, viewDate, setViewDate, enabledIds, setEnabledIds, tz } = useClinic();
-  const [mode, setMode] = useState('week');
+  const [mode, setMode] = useState(() => (window.matchMedia('(max-width: 1023px)').matches ? 'day' : 'week'));
   const [menuOpen, setMenuOpen] = useState(false);
   const [agenda, setAgenda] = useState({ appointments: [], blocks: [], schedules: [] });
   const [turno, setTurno] = useState(null);
@@ -20,6 +27,7 @@ export default function CalendarPage() {
   const [defaults, setDefaults] = useState(null);
   const [blockDefaults, setBlockDefaults] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [statuses, setStatuses] = useState(STATUSES.map((item) => item.id));
 
   const startHour = settings?.start_hour ?? 8;
   const endHour = settings?.end_hour ?? 21;
@@ -40,7 +48,7 @@ export default function CalendarPage() {
   }, [viewDate, mode, enabledIds, weekStartsOn]);
 
   const events = [
-    ...agenda.appointments.map((item) => ({
+    ...agenda.appointments.filter((item) => statuses.includes(item.status)).map((item) => ({
       id: item.id,
       tipo: 'turno',
       title: `${item.patient?.name || 'Turno'} · ${item.service?.name || ''}`.trim(),
@@ -131,7 +139,6 @@ export default function CalendarPage() {
         value={viewDate}
         onChange={(day) => {
           setViewDate(day);
-          setFiltersOpen(false);
         }}
         weekStartsOn={weekStartsOn}
         cursor={viewDate}
@@ -149,6 +156,22 @@ export default function CalendarPage() {
           .map((service) => (
             <ShareLink key={`s-${service.id}`} href={shareUrl('servicio', service.share_slug)} label={service.name} />
           ))}
+      </div>
+      <div className="mt-6">
+        <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[#70757a]">Estado</div>
+        {STATUSES.map((item) => (
+          <label key={item.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-1 py-1.5 text-sm">
+            <input
+              type="checkbox"
+              checked={statuses.includes(item.id)}
+              onChange={(e) => {
+                setStatuses((prev) => (e.target.checked ? [...prev, item.id] : prev.filter((id) => id !== item.id)));
+              }}
+            />
+            <span className="h-3 w-3 rounded-sm" style={{ background: item.color }} />
+            {item.label}
+          </label>
+        ))}
       </div>
       <div className="mt-6">
         <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[#70757a]">Mis calendarios</div>
@@ -253,7 +276,7 @@ export default function CalendarPage() {
         </button>
         {menuOpen && (
           <CreateMenu
-            className="bottom-14 right-0 top-auto"
+            className="bottom-full right-0 mb-2"
             onTurno={() => openCreate(9 * 60, ymd(viewDate, tz))}
             onBloqueo={() => {
               setBlockDefaults({ date: ymd(viewDate, tz) });

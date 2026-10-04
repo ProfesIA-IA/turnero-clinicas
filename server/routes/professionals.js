@@ -3,6 +3,7 @@ import { query } from '../db/pool.js';
 import { uniqueSlug } from '../lib/slug.js';
 import { extraObject } from '../lib/extra.js';
 import { mountPhotos } from '../lib/photos.js';
+import { likeTerm, pageRequest } from '../lib/paging.js';
 
 const router = Router();
 mountPhotos(router, 'professionals');
@@ -25,11 +26,31 @@ async function withServices(professional) {
   return { ...professional, services: services.rows, schedules: schedules.rows };
 }
 
-router.get('/', async (_req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const result = await query('SELECT * FROM professionals ORDER BY name');
+    const q = String(req.query.q || '').trim();
+    const paging = pageRequest(req.query);
+    const params = [];
+    const where = [];
+    if (q) {
+      params.push(likeTerm(q));
+      const n = params.length;
+      where.push(`(name ILIKE $${n} OR code ILIKE $${n} OR email ILIKE $${n})`);
+    }
+    const whereSql = where.length ? ` WHERE ${where.join(' AND ')}` : '';
+    if (!paging) {
+      const result = await query(`SELECT * FROM professionals${whereSql} ORDER BY name`, params);
+      const rows = await Promise.all(result.rows.map(withServices));
+      return res.json({ data: rows, total: rows.length });
+    }
+    const count = await query(`SELECT count(*)::int AS total FROM professionals${whereSql}`, params);
+    const listParams = [...params, paging.limit, paging.offset];
+    const result = await query(
+      `SELECT * FROM professionals${whereSql} ORDER BY name LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      listParams
+    );
     const rows = await Promise.all(result.rows.map(withServices));
-    res.json({ data: rows });
+    res.json({ data: rows, total: count.rows[0].total, page: paging.page, limit: paging.limit });
   } catch (err) {
     next(err);
   }

@@ -53,7 +53,7 @@ export default function ClinicalHistorySummary({
         <div className="flex justify-end gap-2 border-t border-[#dadce0] px-5 py-3">
           {onDownload && (
             <button type="button" className="pill-btn" onClick={onDownload} disabled={downloading}>
-              {downloading ? 'Descargando…' : 'Descargar'}
+              {downloading ? 'Descargando…' : 'Descargar PDF'}
             </button>
           )}
           <button type="button" className="pill-btn primary" onClick={onClose}>

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pager, usePaged } from '../components/Pagination';
+import { useEffect, useState } from 'react';
+import { Pager } from '../components/Pagination';
 import { Share2 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../auth';
@@ -8,6 +8,7 @@ import { useClinic } from '../clinic';
 import ShareDialog from '../components/ShareDialog';
 import { EntityPhoto, PhotoField } from '../components/PhotoField';
 import ExtraFields from '../components/ExtraFields';
+import { formFieldsOf } from '../lib/formFields';
 
 const COLORS = ['#0b8043', '#1a73e8', '#e37400', '#d50000', '#9334e6', '#039be5'];
 
@@ -16,12 +17,41 @@ export default function ServicesPage() {
   const { user } = useAuth();
   const [editing, setEditing] = useState(null);
   const [shareItem, setShareItem] = useState(null);
-  const paged = usePaged(services);
+  const [rows, setRows] = useState([]);
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
+  const limit = 8;
+
+  useEffect(() => {
+    setPage(1);
+  }, [q]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (q.trim()) params.set('q', q.trim());
+      api.services(`?${params.toString()}`)
+        .then((res) => {
+          setRows(res.data || []);
+          setTotal(res.total || 0);
+        })
+        .catch(() => {});
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [q, page, reloadKey]);
 
   return (
     <div className="h-full overflow-auto p-4 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="mr-auto text-2xl">Servicios</h1>
+        <input
+          className="h-9 w-full min-w-0 rounded-full border border-[#dadce0] px-4 text-sm outline-none focus:border-[#1a73e8] sm:w-auto sm:min-w-[240px]"
+          placeholder="Buscar por nombre…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
         {can(user, 'servicios.crear') && (
           <button className="pill-btn primary" onClick={() => setEditing(emptyService())}>
             Nuevo servicio
@@ -29,7 +59,7 @@ export default function ServicesPage() {
         )}
       </div>
       <div className="grid gap-3">
-        {paged.items.map((service) => (
+        {rows.map((service) => (
           <div key={service.id} className="flex flex-col gap-3 rounded-xl border border-[#dadce0] p-4 sm:flex-row sm:items-center sm:gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <EntityPhoto
@@ -63,7 +93,7 @@ export default function ServicesPage() {
           </div>
         ))}
       </div>
-      <Pager page={paged.page} pages={paged.pages} total={paged.total} pageSize={paged.pageSize} onPage={paged.setPage} />
+      <Pager page={page} pages={Math.max(1, Math.ceil(total / limit))} total={total} pageSize={limit} onPage={setPage} />
       {editing && (
         <ServiceForm
           form={editing}
@@ -73,6 +103,7 @@ export default function ServicesPage() {
             const saved = await api.saveService(editing.id, body);
             if (photo) await api.uploadPhoto('services', saved.data.id, photo);
             await reload();
+            setReloadKey((value) => value + 1);
             setEditing(null);
           }}
         />
@@ -93,6 +124,8 @@ export default function ServicesPage() {
 }
 
 function ServiceForm({ form, professionals, onClose, onSave }) {
+  const { settings } = useClinic();
+  const fields = Object.fromEntries(formFieldsOf(settings, 'service').map((field) => [field.key, field]));
   const [state, setState] = useState(form);
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
@@ -124,12 +157,12 @@ function ServiceForm({ form, professionals, onClose, onSave }) {
         <div className="grid gap-3 px-5 py-4">
           {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <PhotoField kind="services" id={state.id} hasPhoto={Boolean(form.photo)} file={photo} onFile={setPhoto} />
-          <label className="field"><span>Nombre</span><input value={state.name} onChange={(e) => setState({ ...state, name: e.target.value })} required /></label>
+          {fields.name?.enabled && <label className="field"><span>{fields.name.label}</span><input value={state.name} onChange={(e) => setState({ ...state, name: e.target.value })} required /></label>}
           <div className="grid grid-cols-2 gap-3">
-            <label className="field"><span>Código</span><input value={state.code} onChange={(e) => setState({ ...state, code: e.target.value })} /></label>
-            <label className="field"><span>Duración (min)</span><input type="number" min="5" step="5" value={state.durationMin} onChange={(e) => setState({ ...state, durationMin: e.target.value })} /></label>
+            {fields.code?.enabled && <label className="field"><span>{fields.code.label}</span><input value={state.code} onChange={(e) => setState({ ...state, code: e.target.value })} required={fields.code.required} /></label>}
+            {fields.durationMin?.enabled && <label className="field"><span>{fields.durationMin.label}</span><input type="number" min="5" step="5" value={state.durationMin} onChange={(e) => setState({ ...state, durationMin: e.target.value })} required={fields.durationMin.required} /></label>}
           </div>
-          <label className="field"><span>Precio</span><input type="number" value={state.price} onChange={(e) => setState({ ...state, price: e.target.value })} /></label>
+          {fields.price?.enabled && <label className="field"><span>{fields.price.label}</span><input type="number" value={state.price} onChange={(e) => setState({ ...state, price: e.target.value })} required={fields.price.required} /></label>}
           <div className="field">
             <span>Color</span>
             <div className="flex gap-2">

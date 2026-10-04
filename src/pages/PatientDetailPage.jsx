@@ -39,11 +39,12 @@ export default function PatientDetailPage() {
         <div className="mr-auto min-w-0">
           <h1 className="truncate text-2xl">{patient.name}</h1>
           <div className="text-sm text-[#70757a]">
+            {patient.dni ? `DNI ${patient.dni} · ` : ''}
             {patient.phone || 'Sin teléfono'}
             {patient.email ? ` · ${patient.email}` : ''}
           </div>
         </div>
-        <button className="pill-btn" onClick={() => setEditingPatient(toPatientForm(patient))}>
+        <button className="pill-btn" type="button" onClick={() => setEditingPatient(toPatientForm(patient))}>
           Editar
         </button>
         <button
@@ -60,7 +61,7 @@ export default function PatientDetailPage() {
             }
           }}
         >
-          {downloading ? 'Descargando…' : 'Descargar historia'}
+          {downloading ? 'Descargando…' : 'Descargar PDF'}
         </button>
         <button className="pill-btn primary" onClick={() => setEditingNote({})}>
           Nueva entrada

@@ -3,6 +3,7 @@ import { query } from '../db/pool.js';
 import { assertSlotFree } from '../lib/conflicts.js';
 import { notifyUsersOfAppointment, sendAppointmentEmail } from '../lib/mail.js';
 import { recordScope } from '../lib/permissions.js';
+import { likeTerm, pageRequest } from '../lib/paging.js';
 
 const router = Router();
 
@@ -54,6 +55,8 @@ async function getAppointment(id) {
 router.get('/', async (req, res, next) => {
   try {
     const { from, to, professionalId, serviceId, status } = req.query;
+    const q = String(req.query.q || '').trim();
+    const paging = pageRequest(req.query);
     const params = [];
     const where = [];
     if (from) {
@@ -76,6 +79,11 @@ router.get('/', async (req, res, next) => {
       params.push(status);
       where.push(`a.status = $${params.length}`);
     }
+    if (q) {
+      params.push(likeTerm(q));
+      const n = params.length;
+      where.push(`(p.name ILIKE $${n} OR pr.name ILIKE $${n} OR s.name ILIKE $${n})`);
+    }
     const scope = recordScope(req.user);
     if (scope?.patientId != null) {
       params.push(scope.patientId);
@@ -85,9 +93,27 @@ router.get('/', async (req, res, next) => {
       params.push(scope.professionalId);
       where.push(`a.professional_id = $${params.length}`);
     }
-    const sql = `${APPOINTMENT_SELECT} ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY a.starts_at`;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const count = await query(
+      `SELECT count(*)::int AS total FROM appointments a
+       LEFT JOIN patients p ON p.id = a.patient_id
+       JOIN professionals pr ON pr.id = a.professional_id
+       JOIN services s ON s.id = a.service_id
+       ${whereSql}`,
+      params
+    );
+    let sql = `${APPOINTMENT_SELECT} ${whereSql} ORDER BY a.starts_at DESC`;
+    if (paging) {
+      params.push(paging.limit, paging.offset);
+      sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    }
     const result = await query(sql, params);
-    res.json({ data: result.rows });
+    res.json({
+      data: result.rows,
+      total: count.rows[0].total,
+      page: paging?.page || 1,
+      limit: paging?.limit || count.rows[0].total,
+    });
   } catch (err) {
     next(err);
   }

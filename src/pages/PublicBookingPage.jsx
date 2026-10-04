@@ -126,6 +126,7 @@ export default function PublicBookingPage({ kind }) {
             <p className="mt-2 text-sm text-[#70757a]">
               {calendar.name} · {format(date, "EEEE d 'de' MMMM", { locale: es })} · {formatSlotLabel(selected, kind)}
             </p>
+            {calendar.bookingIntro && <p className="mt-3 text-sm text-[#3c4043]">{calendar.bookingIntro}</p>}
             <form className="mt-6 space-y-3" onSubmit={book}>
               {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
               {fields.map((field) => (
@@ -134,12 +135,25 @@ export default function PublicBookingPage({ kind }) {
                     {field.label}
                     {field.required ? '' : ' (opcional)'}
                   </span>
-                  <input
-                    type={field.type === 'email' ? 'email' : field.type === 'tel' ? 'tel' : 'text'}
-                    value={form[field.key] || ''}
-                    onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
-                    required={field.required}
-                  />
+                  {field.type === 'textarea' ? (
+                    <textarea rows={3} value={form[field.key] || ''} required={field.required} onChange={(e) => setForm({ ...form, [field.key]: e.target.value })} />
+                  ) : field.type === 'select' ? (
+                    <select value={form[field.key] || ''} required={field.required} onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}>
+                      <option value="">Elegir…</option>
+                      {(field.options || []).map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  ) : field.type === 'checkbox' ? (
+                    <input type="checkbox" checked={Boolean(form[field.key])} onChange={(e) => setForm({ ...form, [field.key]: e.target.checked })} />
+                  ) : (
+                    <input
+                      type={field.type === 'email' ? 'email' : field.type === 'tel' ? 'tel' : field.type === 'number' ? 'number' : 'text'}
+                      value={form[field.key] || ''}
+                      onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+                      required={field.required}
+                    />
+                  )}
                 </label>
               ))}
               <button className="pill-btn primary" type="submit">

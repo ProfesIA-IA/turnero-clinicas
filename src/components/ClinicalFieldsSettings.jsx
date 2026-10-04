@@ -34,7 +34,7 @@ export default function ClinicalFieldsSettings({ professionals, services }) {
   }, []);
 
   return (
-    <section className="mt-10 max-w-4xl space-y-5">
+    <section id="seccion-historia" className="mt-2 scroll-mt-24 max-w-4xl space-y-5">
       <div>
         <h2 className="text-xl">Campos de historia clínica</h2>
         <p className="mt-1 text-sm text-[#70757a]">

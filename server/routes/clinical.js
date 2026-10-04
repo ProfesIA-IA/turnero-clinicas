@@ -6,6 +6,7 @@ import multer from 'multer';
 import { query } from '../db/pool.js';
 import { getClinicSettings } from '../lib/availability.js';
 import { deleteObject, readObject, saveObject } from '../lib/objectStore.js';
+import { buildHistoryPdf } from '../lib/historyPdf.js';
 
 const ALLOWED_TYPES = /^(image\/|application\/pdf|text\/plain|application\/msword|application\/vnd\.openxmlformats-officedocument|application\/vnd\.ms-excel)/;
 const FIELD_TYPES = new Set(['text', 'textarea', 'number', 'date', 'select', 'checkbox']);
@@ -142,11 +143,12 @@ router.get('/patients/:patientId/export', async (req, res, next) => {
     );
     const settings = await getClinicSettings();
     const rows = await attachFiles(notes.rows);
-    const html = renderHistoryHtml(patient.rows[0], rows, settings);
+    const images = await noteImages(rows);
+    const pdf = await buildHistoryPdf({ patient: patient.rows[0], notes: rows, settings, images });
     const slug = slugifyName(patient.rows[0].name);
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="historia-clinica-${slug}.html"`);
-    res.send(html);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="historia-clinica-${slug}.pdf"`);
+    res.send(pdf);
   } catch (err) {
     next(err);
   }
@@ -436,6 +438,26 @@ function parseFieldBody(body = {}) {
   };
 }
 
+
+async function noteImages(notes) {
+  const images = new Map();
+  const ids = notes.flatMap((note) => (note.files || []).map((file) => file.id));
+  if (!ids.length) return images;
+  const files = await query(
+    `SELECT id, stored_name, mime_type FROM clinical_files WHERE id = ANY($1::int[])`,
+    [ids]
+  );
+  for (const file of files.rows) {
+    if (!String(file.mime_type || '').startsWith('image/')) continue;
+    if (!/jpeg|jpg|png/.test(file.mime_type)) continue;
+    const body = await readObject(file.stored_name);
+    if (!body) continue;
+    const chunks = [];
+    for await (const chunk of body) chunks.push(chunk);
+    images.set(file.id, Buffer.concat(chunks));
+  }
+  return images;
+}
 
 function renderHistoryHtml(patient, notes, settings) {
   const tz = settings?.timezone || 'America/Argentina/Buenos_Aires';

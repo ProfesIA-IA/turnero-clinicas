@@ -227,7 +227,7 @@ export default function AppointmentModal({
           {form.patientId && (
             <div className="mb-3">
               {form.id && (
-                <p className="mb-2 text-sm text-[#3c4043]">
+                <p className="mb-3 rounded-xl border border-[#f9ab00] bg-[#fef7e0] px-4 py-3 text-sm font-medium text-[#e37400]">
                   {evolutionCount === 0
                     ? 'Este turno no tiene evoluciones.'
                     : evolutionCount === 1

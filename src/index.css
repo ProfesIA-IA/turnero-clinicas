@@ -130,9 +130,8 @@ button, input, select, textarea { font-family: inherit; }
 }
 .week-grid {
   display: grid;
-  grid-template-columns: 48px repeat(var(--days, 7), minmax(0, 1fr));
-  min-width: 0;
-  width: 100%;
+  grid-template-columns: 40px repeat(var(--days, 7), minmax(88px, 1fr));
+  width: max(100%, calc(40px + var(--days) * 92px));
 }
 .week-grid > * {
   min-width: 0;
@@ -403,7 +402,7 @@ button, input, select, textarea { font-family: inherit; }
 .cal-fab {
   position: fixed;
   right: 16px;
-  bottom: max(16px, env(safe-area-inset-bottom));
+  bottom: calc(64px + env(safe-area-inset-bottom));
   z-index: 30;
 }
 

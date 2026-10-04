@@ -9,6 +9,7 @@ import { sendPasswordCredentials } from '../lib/mail.js';
 import { config } from '../config.js';
 import { mountPhotos } from '../lib/photos.js';
 import { extraObject } from '../lib/extra.js';
+import { likeTerm, pageRequest } from '../lib/paging.js';
 
 const router = Router();
 mountPhotos(router, 'users');
@@ -30,10 +31,31 @@ router.get('/meta', (_req, res) => {
   });
 });
 
-router.get('/', async (_req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const result = await query(`${SELECT} ORDER BY is_system DESC, name ASC`);
-    res.json({ data: result.rows.map(publicUserRow) });
+    const q = String(req.query.q || '').trim();
+    const paging = pageRequest(req.query);
+    const params = [];
+    const where = [];
+    if (q) {
+      params.push(likeTerm(q));
+      const n = params.length;
+      where.push(`(name ILIKE $${n} OR username ILIKE $${n} OR email ILIKE $${n})`);
+    }
+    const whereSql = where.length ? ` WHERE ${where.join(' AND ')}` : '';
+    const count = await query(`SELECT count(*)::int AS total FROM users${whereSql}`, params);
+    let sql = `${SELECT}${whereSql} ORDER BY is_system DESC, name ASC`;
+    if (paging) {
+      params.push(paging.limit, paging.offset);
+      sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    }
+    const result = await query(sql, params);
+    res.json({
+      data: result.rows.map(publicUserRow),
+      total: count.rows[0].total,
+      page: paging?.page || 1,
+      limit: paging?.limit || count.rows[0].total,
+    });
   } catch (err) {
     next(err);
   }
