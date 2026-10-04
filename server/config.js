@@ -18,6 +18,10 @@ export const config = {
   seedDemo: String(process.env.SEED_DEMO || 'true').toLowerCase() !== 'false',
   nodeEnv: process.env.NODE_ENV || 'development',
   uploadDir: process.env.UPLOAD_DIR || '',
+  resendApiKey: process.env.RESEND_API_KEY || '',
+  emailFrom: process.env.EMAIL_FROM || '',
+  emailDevTo: process.env.EMAIL_DEV_TO || '',
+  publicAppUrl: process.env.PUBLIC_APP_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : ''),
 };
 
 export function assertRuntimeConfig() {

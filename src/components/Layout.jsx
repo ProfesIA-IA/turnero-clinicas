@@ -19,13 +19,13 @@ import PoweredBy from './PoweredBy';
 import Sitemap from './Sitemap';
 
 const NAV = [
-  { to: '/', label: 'Agenda', icon: CalendarDays, end: true, perm: 'agenda' },
-  { to: '/turnos', label: 'Turnos', icon: Clock3, perm: 'turnos' },
-  { to: '/pacientes', label: 'Pacientes', icon: Users, perm: 'pacientes' },
-  { to: '/profesionales', label: 'Profesionales', icon: UserRound, perm: 'profesionales' },
-  { to: '/servicios', label: 'Servicios', icon: Stethoscope, perm: 'servicios' },
-  { to: '/usuarios', label: 'Usuarios', icon: Shield, perm: 'usuarios' },
-  { to: '/configuracion', label: 'Configuración', icon: Settings, perm: 'configuracion' },
+  { to: '/', label: 'Agenda', icon: CalendarDays, end: true, perm: 'agenda.ver' },
+  { to: '/turnos', label: 'Turnos', icon: Clock3, perm: 'turnos.ver' },
+  { to: '/pacientes', label: 'Pacientes', icon: Users, perm: 'pacientes.ver' },
+  { to: '/profesionales', label: 'Profesionales', icon: UserRound, perm: 'profesionales.ver' },
+  { to: '/servicios', label: 'Servicios', icon: Stethoscope, perm: 'servicios.ver' },
+  { to: '/usuarios', label: 'Usuarios', icon: Shield, perm: 'usuarios.ver' },
+  { to: '/configuracion', label: 'Configuración', icon: Settings, perm: 'configuracion.ver' },
 ];
 
 export default function Layout() {

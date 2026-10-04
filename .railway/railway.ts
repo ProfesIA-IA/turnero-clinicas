@@ -31,6 +31,10 @@ export default defineRailway(() => {
       DEFAULT_ADMIN_USER: "admin",
       DEFAULT_ADMIN_PASSWORD: "${{secret(20)}}",
       UPLOAD_DIR: "/data/uploads",
+      RESEND_API_KEY: "",
+      EMAIL_FROM: "",
+      EMAIL_DEV_TO: "",
+      PUBLIC_APP_URL: "",
     },
   });
 

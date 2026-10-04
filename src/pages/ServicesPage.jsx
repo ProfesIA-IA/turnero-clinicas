@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Share2 } from 'lucide-react';
 import { api } from '../api';
+import { useAuth } from '../auth';
+import { can } from '../lib/permissions';
 import { useClinic } from '../clinic';
 import ShareDialog from '../components/ShareDialog';
 
@@ -8,6 +10,7 @@ const COLORS = ['#0b8043', '#1a73e8', '#e37400', '#d50000', '#9334e6', '#039be5'
 
 export default function ServicesPage() {
   const { services, professionals, reload } = useClinic();
+  const { user } = useAuth();
   const [editing, setEditing] = useState(null);
   const [shareItem, setShareItem] = useState(null);
 
@@ -15,9 +18,11 @@ export default function ServicesPage() {
     <div className="h-full overflow-auto p-4 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="mr-auto text-2xl">Servicios</h1>
-        <button className="pill-btn primary" onClick={() => setEditing(emptyService())}>
-          Nuevo servicio
-        </button>
+        {can(user, 'servicios.crear') && (
+          <button className="pill-btn primary" onClick={() => setEditing(emptyService())}>
+            Nuevo servicio
+          </button>
+        )}
       </div>
       <div className="grid gap-3">
         {services.map((service) => (
@@ -34,12 +39,16 @@ export default function ServicesPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
-              <button className="pill-btn inline-flex items-center gap-1" onClick={() => setShareItem(service)}>
-                <Share2 size={14} /> Compartir
-              </button>
-              <button className="pill-btn" onClick={() => setEditing(toForm(service))}>
-                Editar
-              </button>
+              {can(user, 'servicios.compartir') && (
+                <button className="pill-btn inline-flex items-center gap-1" onClick={() => setShareItem(service)}>
+                  <Share2 size={14} /> Compartir
+                </button>
+              )}
+              {can(user, 'servicios.editar') && (
+                <button className="pill-btn" onClick={() => setEditing(toForm(service))}>
+                  Editar
+                </button>
+              )}
             </div>
           </div>
         ))}

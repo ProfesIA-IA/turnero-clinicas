@@ -185,6 +185,19 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS professional_id INT REFERENCES profes
 ALTER TABLE users ADD COLUMN IF NOT EXISTS patient_id INT REFERENCES patients(id) ON DELETE SET NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_system BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique
+  ON users (lower(email))
+  WHERE email IS NOT NULL AND email <> '';
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token TEXT UNIQUE NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'secretaria', 'profesional', 'paciente'));

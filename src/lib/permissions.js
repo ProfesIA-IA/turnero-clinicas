@@ -1,11 +1,11 @@
-export const MODULES = [
-  { key: 'agenda', label: 'Agenda', to: '/' },
-  { key: 'turnos', label: 'Turnos', to: '/turnos' },
-  { key: 'pacientes', label: 'Pacientes', to: '/pacientes' },
-  { key: 'profesionales', label: 'Profesionales', to: '/profesionales' },
-  { key: 'servicios', label: 'Servicios', to: '/servicios' },
-  { key: 'configuracion', label: 'Configuración', to: '/configuracion' },
-  { key: 'usuarios', label: 'Usuarios', to: '/usuarios' },
+export const NAV_PERMISSIONS = [
+  { key: 'agenda.ver', label: 'Agenda', to: '/' },
+  { key: 'turnos.ver', label: 'Turnos', to: '/turnos' },
+  { key: 'pacientes.ver', label: 'Pacientes', to: '/pacientes' },
+  { key: 'profesionales.ver', label: 'Profesionales', to: '/profesionales' },
+  { key: 'servicios.ver', label: 'Servicios', to: '/servicios' },
+  { key: 'usuarios.ver', label: 'Usuarios', to: '/usuarios' },
+  { key: 'configuracion.ver', label: 'Configuración', to: '/configuracion' },
 ];
 
 export const ROLE_LABELS = {
@@ -22,6 +22,6 @@ export function can(user, key) {
 }
 
 export function firstAllowedPath(user) {
-  const match = MODULES.find((mod) => can(user, mod.key));
+  const match = NAV_PERMISSIONS.find((mod) => can(user, mod.key));
   return match?.to || '/login';
 }

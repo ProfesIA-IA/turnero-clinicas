@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { assertSlotFree } from '../lib/conflicts.js';
+import { notifyUsersOfAppointment, sendAppointmentEmail } from '../lib/mail.js';
 import { recordScope } from '../lib/permissions.js';
 
 const router = Router();
@@ -229,7 +230,14 @@ export async function createAppointment(body, source = 'staff') {
      RETURNING id`,
     [patientId, professionalId, serviceId, start, end, status, notes || null, source]
   );
-  return getAppointment(result.rows[0].id);
+  const created = await getAppointment(result.rows[0].id);
+  try {
+    await sendAppointmentEmail(created);
+    await notifyUsersOfAppointment(created);
+  } catch (err) {
+    console.error('Email de turno no enviado:', err.message);
+  }
+  return created;
 }
 
 export default router;

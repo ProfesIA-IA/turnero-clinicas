@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth';
+import { api } from '../api';
 import PoweredBy from '../components/PoweredBy';
 
 export default function LoginPage() {
@@ -9,6 +10,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
 
   if (!loading && isAuthenticated) return <Navigate to="/" replace />;
 
@@ -59,6 +63,42 @@ export default function LoginPage() {
           >
             Ingresar
           </button>
+          <button type="button" className="mt-4 text-sm text-[#1a73e8]" onClick={() => setForgot(true)}>
+            Olvidé mi contraseña
+          </button>
+          {forgot && (
+            <div className="mt-4 border-t border-[#dadce0] pt-4">
+              {sent ? (
+                <p className="text-sm text-[#3c4043]">Si el email está cargado en un usuario, vas a recibir un enlace para definir la contraseña.</p>
+              ) : (
+                <>
+                  <label className="field mb-3">
+                    <span>Email</span>
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  </label>
+                  <button
+                    type="button"
+                    className="pill-btn primary"
+                    disabled={busy || !email}
+                    onClick={async () => {
+                      setBusy(true);
+                      setError('');
+                      try {
+                        await api.forgotPassword(email);
+                        setSent(true);
+                      } catch (err) {
+                        setError(err.message);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Enviar enlace
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </form>
       </div>
       <PoweredBy />

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { expandPermissions } from '../lib/permissions.js';
 import bcrypt from 'bcryptjs';
 import { query } from '../db/pool.js';
 
@@ -58,8 +59,9 @@ export function publicUser(user) {
     id: user.id,
     username: user.username,
     name: user.name,
+    email: user.email || '',
     role: user.role || 'admin',
-    permissions: user.permissions || {},
+    permissions: expandPermissions(user.permissions),
     professionalId: user.professional_id || null,
     patientId: user.patient_id || null,
     active: user.active !== false,

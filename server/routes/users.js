@@ -1,19 +1,23 @@
+import crypto from 'crypto';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../db/pool.js';
 import { publicUser } from '../middleware/auth.js';
-import { MODULES, ROLES, normalizePermissions, defaultsFor } from '../lib/permissions.js';
+import { PERMISSIONS, ROLES, normalizePermissions, defaultsFor } from '../lib/permissions.js';
+import { issuePasswordLink } from './auth.js';
+import { sendPasswordCredentials } from '../lib/mail.js';
+import { config } from '../config.js';
 
 const router = Router();
 
 const SELECT = `
-  SELECT id, username, name, role, permissions, professional_id, patient_id, active, is_system, created_at
+  SELECT id, username, name, email, role, permissions, professional_id, patient_id, active, is_system, created_at
   FROM users
 `;
 
 router.get('/meta', (_req, res) => {
   res.json({
-    modules: MODULES,
+    permissions: PERMISSIONS,
     roles: ROLES,
     defaults: {
       secretaria: defaultsFor('secretaria'),
@@ -37,13 +41,14 @@ router.post('/', async (req, res, next) => {
     const body = await validateBody(req.body, { creating: true });
     const hash = await bcrypt.hash(body.password, 10);
     const result = await query(
-      `INSERT INTO users (username, password_hash, name, role, permissions, professional_id, patient_id, active, is_system)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, false)
-       RETURNING id, username, name, role, permissions, professional_id, patient_id, active, is_system, created_at`,
+      `INSERT INTO users (username, password_hash, name, email, role, permissions, professional_id, patient_id, active, is_system)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, false)
+       RETURNING id, username, name, email, role, permissions, professional_id, patient_id, active, is_system, created_at`,
       [
         body.username,
         hash,
         body.name,
+        body.email,
         body.role,
         JSON.stringify(body.permissions),
         body.professionalId,
@@ -51,6 +56,10 @@ router.post('/', async (req, res, next) => {
         body.active,
       ]
     );
+    if (body.sendPassword) await deliverPassword(result.rows[0], body.password, req);
+    else if (body.email && (body.sendPasswordLink || !String(req.body?.password || ''))) {
+      await issuePasswordLink(result.rows[0], req);
+    }
     res.status(201).json({ data: publicUserRow(result.rows[0]) });
   } catch (err) {
     next(err);
@@ -68,6 +77,7 @@ router.put('/:id', async (req, res, next) => {
     const params = [
       body.username,
       body.name,
+      body.email,
       body.role,
       JSON.stringify(body.permissions),
       body.professionalId,
@@ -77,24 +87,26 @@ router.put('/:id', async (req, res, next) => {
     ];
     let sql = `
       UPDATE users
-      SET username = $1, name = $2, role = $3, permissions = $4::jsonb,
-          professional_id = $5, patient_id = $6, active = $7
-      WHERE id = $8
+      SET username = $1, name = $2, email = $3, role = $4, permissions = $5::jsonb,
+          professional_id = $6, patient_id = $7, active = $8
+      WHERE id = $9
     `;
     if (body.password) {
       const hash = await bcrypt.hash(body.password, 10);
       sql = `
         UPDATE users
-        SET username = $1, name = $2, role = $3, permissions = $4::jsonb,
-            professional_id = $5, patient_id = $6, active = $7, password_hash = $9
-        WHERE id = $8
+        SET username = $1, name = $2, email = $3, role = $4, permissions = $5::jsonb,
+            professional_id = $6, patient_id = $7, active = $8, password_hash = $10
+        WHERE id = $9
       `;
       params.push(hash);
     }
     const result = await query(
-      `${sql} RETURNING id, username, name, role, permissions, professional_id, patient_id, active, is_system, created_at`,
+      `${sql} RETURNING id, username, name, email, role, permissions, professional_id, patient_id, active, is_system, created_at`,
       params
     );
+    if (body.sendPassword) await deliverPassword(result.rows[0], body.password, req);
+    else if (body.sendPasswordLink) await issuePasswordLink(result.rows[0], req);
     res.json({ data: publicUserRow(result.rows[0]) });
   } catch (err) {
     next(err);
@@ -117,6 +129,16 @@ router.delete('/:id', async (req, res, next) => {
     next(err);
   }
 });
+
+async function deliverPassword(user, password, req) {
+  const base = (config.publicAppUrl || `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  const sent = await sendPasswordCredentials(user, password, `${base}/login`);
+  if (sent?.skipped) {
+    const err = new Error('El envío de email no está configurado');
+    err.status = 400;
+    throw err;
+  }
+}
 
 function publicUserRow(row) {
   return {
@@ -145,7 +167,23 @@ async function validateBody(body, { creating, current }) {
     err.status = 400;
     throw err;
   }
-  if (creating && password.length < 6) {
+  const email = String(body?.email || '').trim().toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const err = new Error('El email no es válido');
+    err.status = 400;
+    throw err;
+  }
+  if (body?.sendPassword && (!password || !email)) {
+    const err = new Error('Para enviar la contraseña cargá el email y una contraseña');
+    err.status = 400;
+    throw err;
+  }
+  if (creating && !password && !email) {
+    const err = new Error('Cargá una contraseña o un email para enviar el enlace');
+    err.status = 400;
+    throw err;
+  }
+  if (creating && password && password.length < 6) {
     const err = new Error('La contraseña debe tener al menos 6 caracteres');
     err.status = 400;
     throw err;
@@ -188,8 +226,11 @@ async function validateBody(body, { creating, current }) {
   return {
     username,
     name,
+    email: email || null,
     role,
-    password,
+    password: password || (creating ? crypto.randomBytes(18).toString('hex') : ''),
+    sendPasswordLink: Boolean(body?.sendPasswordLink),
+    sendPassword: Boolean(body?.sendPassword),
     professionalId,
     patientId,
     active: body?.active !== false,

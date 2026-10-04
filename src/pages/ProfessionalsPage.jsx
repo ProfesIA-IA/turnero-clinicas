@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Share2 } from 'lucide-react';
 import { api } from '../api';
+import { useAuth } from '../auth';
+import { can } from '../lib/permissions';
 import { useClinic } from '../clinic';
 import ShareDialog from '../components/ShareDialog';
 import SchedulesModal from '../components/SchedulesModal';
@@ -10,6 +12,7 @@ const COLORS = ['#1a73e8', '#0b8043', '#e37400', '#d50000', '#9334e6', '#039be5'
 
 export default function ProfessionalsPage() {
   const { professionals, services, reload } = useClinic();
+  const { user } = useAuth();
   const location = useLocation();
   const [editing, setEditing] = useState(null);
   const [shareItem, setShareItem] = useState(null);
@@ -26,9 +29,11 @@ export default function ProfessionalsPage() {
     <div className="h-full overflow-auto p-4 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="mr-auto text-2xl">Profesionales</h1>
-        <button className="pill-btn primary" onClick={() => setEditing(emptyPro())}>
-          Nuevo profesional
-        </button>
+        {can(user, 'profesionales.crear') && (
+          <button className="pill-btn primary" onClick={() => setEditing(emptyPro())}>
+            Nuevo profesional
+          </button>
+        )}
       </div>
       <div className="grid gap-3">
         {professionals.map((pro) => (
@@ -43,19 +48,25 @@ export default function ProfessionalsPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
-              <button className="pill-btn" type="button" onClick={() => setSchedulePro(pro)}>
-                Horarios
-              </button>
-              <button
-                className="pill-btn inline-flex items-center gap-1"
-                onClick={() => setShareItem(pro)}
-                disabled={!pro.share_slug}
-              >
-                <Share2 size={14} /> Compartir
-              </button>
-              <button className="pill-btn" onClick={() => setEditing(toForm(pro))}>
-                Editar
-              </button>
+              {can(user, 'profesionales.editar_horarios') && (
+                <button className="pill-btn" type="button" onClick={() => setSchedulePro(pro)}>
+                  Horarios
+                </button>
+              )}
+              {can(user, 'profesionales.compartir') && (
+                <button
+                  className="pill-btn inline-flex items-center gap-1"
+                  onClick={() => setShareItem(pro)}
+                  disabled={!pro.share_slug}
+                >
+                  <Share2 size={14} /> Compartir
+                </button>
+              )}
+              {can(user, 'profesionales.editar') && (
+                <button className="pill-btn" onClick={() => setEditing(toForm(pro))}>
+                  Editar
+                </button>
+              )}
             </div>
           </div>
         ))}

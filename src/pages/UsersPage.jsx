@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
-import { ROLE_LABELS } from '../lib/permissions';
+import { can, ROLE_LABELS } from '../lib/permissions';
+import { useAuth } from '../auth';
 
 const EMPTY = {
   username: '',
+  email: '',
   name: '',
   password: '',
+  sendPasswordLink: false,
+  sendPassword: false,
   role: 'secretaria',
   active: true,
   professionalId: '',
@@ -14,6 +18,7 @@ const EMPTY = {
 };
 
 export default function UsersPage() {
+  const { user: current } = useAuth();
   const [users, setUsers] = useState([]);
   const [meta, setMeta] = useState(null);
   const [professionals, setProfessionals] = useState([]);
@@ -45,13 +50,15 @@ export default function UsersPage() {
           <h1 className="text-2xl">Usuarios</h1>
           <p className="text-sm text-[#70757a]">Altas de secretaría, profesionales y pacientes, con permisos por sección.</p>
         </div>
-        <button
-          className="pill-btn primary"
-          type="button"
-          onClick={() => setEditing({ ...EMPTY, permissions: { ...(meta?.defaults?.secretaria || {}) } })}
-        >
-          Nuevo usuario
-        </button>
+        {can(current, 'usuarios.crear') && (
+          <button
+            className="pill-btn primary"
+            type="button"
+            onClick={() => setEditing({ ...EMPTY, permissions: { ...(meta?.defaults?.secretaria || {}) } })}
+          >
+            Nuevo usuario
+          </button>
+        )}
       </div>
       {error && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
       <div className="grid gap-3">
@@ -63,27 +70,31 @@ export default function UsersPage() {
                 <span className="text-sm font-normal text-[#70757a]">@{user.username}</span>
               </div>
               <div className="text-sm text-[#70757a]">
-                {ROLE_LABELS[user.role] || user.role}
+                {user.email || 'Sin email'} · {ROLE_LABELS[user.role] || user.role}
                 {user.isSystem ? ' · cuenta del sistema' : ''}
                 {!user.active ? ' · desactivado' : ''}
               </div>
             </div>
             {!user.isSystem && (
               <div className="flex gap-2">
-                <button className="pill-btn" type="button" onClick={() => setEditing(toForm(user))}>
-                  Editar
-                </button>
-                <button
-                  className="pill-btn"
-                  type="button"
-                  onClick={async () => {
-                    if (!window.confirm(`¿Eliminar a ${user.name}?`)) return;
-                    await api.deleteUser(user.id);
-                    await load();
-                  }}
-                >
-                  Eliminar
-                </button>
+                {can(current, 'usuarios.editar') && (
+                  <button className="pill-btn" type="button" onClick={() => setEditing(toForm(user))}>
+                    Editar
+                  </button>
+                )}
+                {can(current, 'usuarios.eliminar') && (
+                  <button
+                    className="pill-btn"
+                    type="button"
+                    onClick={async () => {
+                      if (!window.confirm(`¿Eliminar a ${user.name}?`)) return;
+                      await api.deleteUser(user.id);
+                      await load();
+                    }}
+                  >
+                    Eliminar
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -111,7 +122,10 @@ function toForm(user) {
   return {
     id: user.id,
     username: user.username,
+    email: user.email || '',
     name: user.name,
+    sendPasswordLink: false,
+    sendPassword: false,
     password: '',
     role: user.role,
     active: user.active,
@@ -124,6 +138,21 @@ function toForm(user) {
 function UserForm({ form, meta, professionals, patients, onClose, onSave }) {
   const [state, setState] = useState(form);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const permissions = meta.permissions || [];
+  const visible = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return permissions;
+    return permissions.filter((item) => `${item.group} ${item.label}`.toLowerCase().includes(term));
+  }, [permissions, query]);
+  const groups = useMemo(() => {
+    const map = new Map();
+    for (const item of visible) {
+      if (!map.has(item.group)) map.set(item.group, []);
+      map.get(item.group).push(item);
+    }
+    return [...map.entries()];
+  }, [visible]);
 
   function setRole(role) {
     setState((prev) => ({
@@ -144,8 +173,11 @@ function UserForm({ form, meta, professionals, patients, onClose, onSave }) {
           try {
             await onSave({
               username: state.username,
+              email: state.email,
               name: state.name,
               password: state.password,
+              sendPasswordLink: state.sendPasswordLink,
+              sendPassword: state.sendPassword,
               role: state.role,
               active: state.active,
               professionalId: state.professionalId || null,
@@ -169,16 +201,45 @@ function UserForm({ form, meta, professionals, patients, onClose, onSave }) {
             <input value={state.username} onChange={(e) => setState({ ...state, username: e.target.value })} required />
           </label>
           <label className="field">
+            <span>Email (opcional, recomendado)</span>
+            <input
+              type="email"
+              value={state.email}
+              onChange={(e) => setState({ ...state, email: e.target.value })}
+              placeholder="Para recuperar la contraseña y avisos de turnos"
+            />
+          </label>
+          <label className="field">
             <span>{state.id ? 'Nueva contraseña' : 'Contraseña'}</span>
             <input
               type="password"
               value={state.password}
               onChange={(e) => setState({ ...state, password: e.target.value })}
-              required={!state.id}
+              required={!state.id && !state.email}
               minLength={state.password ? 6 : undefined}
-              placeholder={state.id ? 'Dejar vacío para no cambiarla' : ''}
+              placeholder={state.id ? 'Dejar vacío para no cambiarla' : 'O enviá un enlace al email'}
             />
           </label>
+          {state.email && (
+            <div className="grid gap-2 text-sm">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={state.sendPassword}
+                  onChange={(e) => setState({ ...state, sendPassword: e.target.checked, sendPasswordLink: e.target.checked ? false : state.sendPasswordLink })}
+                />
+                Enviar la contraseña por email
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={state.sendPasswordLink || (!state.id && !state.password && !state.sendPassword)}
+                  onChange={(e) => setState({ ...state, sendPasswordLink: e.target.checked, sendPassword: e.target.checked ? false : state.sendPassword })}
+                />
+                Enviar enlace para definir la contraseña
+              </label>
+            </div>
+          )}
           <label className="field">
             <span>Rol</span>
             <select value={state.role} onChange={(e) => setRole(e.target.value)}>
@@ -220,22 +281,35 @@ function UserForm({ form, meta, professionals, patients, onClose, onSave }) {
             </label>
           )}
           <div className="field">
-            <span>Puede ver</span>
-            <div className="grid gap-2 pt-1">
-              {meta.modules.map((mod) => (
-                <label key={mod.key} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(state.permissions[mod.key])}
-                    onChange={(e) =>
-                      setState({
-                        ...state,
-                        permissions: { ...state.permissions, [mod.key]: e.target.checked },
-                      })
-                    }
-                  />
-                  {mod.label}
-                </label>
+            <span>Permisos</span>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar permiso…"
+            />
+            <div className="mt-2 max-h-64 space-y-3 overflow-auto rounded-lg border border-[#dadce0] p-3">
+              {groups.length === 0 && <div className="text-sm text-[#70757a]">Ningún permiso coincide.</div>}
+              {groups.map(([group, items]) => (
+                <div key={group}>
+                  <div className="mb-1 text-xs font-medium uppercase tracking-wide text-[#70757a]">{group}</div>
+                  <div className="grid gap-1">
+                    {items.map((item) => (
+                      <label key={item.key} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(state.permissions[item.key])}
+                          onChange={(e) =>
+                            setState({
+                              ...state,
+                              permissions: { ...state.permissions, [item.key]: e.target.checked },
+                            })
+                          }
+                        />
+                        {item.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

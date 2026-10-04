@@ -12,12 +12,14 @@ import PatientsPage from './pages/PatientsPage';
 import PatientDetailPage from './pages/PatientDetailPage';
 import PublicBookingPage from './pages/PublicBookingPage';
 import UsersPage from './pages/UsersPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import { can, firstAllowedPath } from './lib/permissions';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/restablecer" element={<ResetPasswordPage />} />
       <Route path="/reservar/profesional/:slug" element={<PublicBookingPage kind="profesional" />} />
       <Route path="/reservar/servicio/:slug" element={<PublicBookingPage kind="servicio" />} />
       <Route
@@ -30,15 +32,15 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<Guard perm="agenda"><CalendarPage /></Guard>} />
-        <Route path="turnos" element={<Guard perm="turnos"><AppointmentsPage /></Guard>} />
-        <Route path="pacientes" element={<Guard perm="pacientes"><PatientsPage /></Guard>} />
-        <Route path="pacientes/:id" element={<Guard perm="pacientes"><PatientDetailPage /></Guard>} />
-        <Route path="profesionales" element={<Guard perm="profesionales"><ProfessionalsPage /></Guard>} />
+        <Route index element={<Guard perm="agenda.ver"><CalendarPage /></Guard>} />
+        <Route path="turnos" element={<Guard perm="turnos.ver"><AppointmentsPage /></Guard>} />
+        <Route path="pacientes" element={<Guard perm="pacientes.ver"><PatientsPage /></Guard>} />
+        <Route path="pacientes/:id" element={<Guard perm="pacientes.ver"><PatientDetailPage /></Guard>} />
+        <Route path="profesionales" element={<Guard perm="profesionales.ver"><ProfessionalsPage /></Guard>} />
         <Route path="profesionales/:id" element={<ProfessionalScheduleRedirect />} />
-        <Route path="servicios" element={<Guard perm="servicios"><ServicesPage /></Guard>} />
-        <Route path="usuarios" element={<Guard perm="usuarios"><UsersPage /></Guard>} />
-        <Route path="configuracion" element={<Guard perm="configuracion"><SettingsPage /></Guard>} />
+        <Route path="servicios" element={<Guard perm="servicios.ver"><ServicesPage /></Guard>} />
+        <Route path="usuarios" element={<Guard perm="usuarios.ver"><UsersPage /></Guard>} />
+        <Route path="configuracion" element={<Guard perm="configuracion.ver"><SettingsPage /></Guard>} />
       </Route>
     </Routes>
   );

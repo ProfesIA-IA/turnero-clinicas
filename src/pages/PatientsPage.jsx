@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
+import { useAuth } from '../auth';
+import { can } from '../lib/permissions';
 import PatientForm, { emptyPatient, toPatientForm } from '../components/PatientForm';
 
 export default function PatientsPage() {
@@ -8,6 +10,7 @@ export default function PatientsPage() {
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState('');
+  const { user } = useAuth();
 
   async function load(term = q) {
     const params = new URLSearchParams();
@@ -33,9 +36,11 @@ export default function PatientsPage() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <button className="pill-btn primary" onClick={() => setEditing(emptyPatient())}>
-          Nuevo paciente
-        </button>
+        {can(user, 'pacientes.crear') && (
+          <button className="pill-btn primary" onClick={() => setEditing(emptyPatient())}>
+            Nuevo paciente
+          </button>
+        )}
       </div>
       {error && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
       <div className="overflow-x-auto rounded-xl border border-[#dadce0]">

@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useAuth } from '../auth';
+import { can } from '../lib/permissions';
 import { useClinic } from '../clinic';
 import AppointmentModal from '../components/AppointmentModal';
 import { formatRangeLabel } from '../lib/calendar';
 
 export default function AppointmentsPage() {
   const { professionals, services, tz } = useClinic();
+  const { user } = useAuth();
   const [rows, setRows] = useState([]);
   const [status, setStatus] = useState('');
   const [professionalId, setProfessionalId] = useState('');
@@ -42,9 +45,11 @@ export default function AppointmentsPage() {
           <option value="COMPLETADO">Completado</option>
           <option value="CANCELADO">Cancelado</option>
         </select>
-        <button className="pill-btn primary" onClick={() => setSelected('new')}>
-          Nuevo turno
-        </button>
+        {(can(user, 'turnos.crear') || can(user, 'agenda.crear_turno')) && (
+          <button className="pill-btn primary" onClick={() => setSelected('new')}>
+            Nuevo turno
+          </button>
+        )}
       </div>
       <div className="overflow-x-auto rounded-xl border border-[#dadce0]">
         <table className="w-full text-left text-sm">

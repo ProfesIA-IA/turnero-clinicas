@@ -81,6 +81,10 @@ Copiá `.env.example`. Las más usadas:
 | `SEED_DEMO` | `true` | Carga profesionales, servicios y turnos de ejemplo si la base está vacía |
 | `UPLOAD_DIR` | (vacío → `uploads/` en el repo) | Carpeta de archivos clínicos |
 | `CORS_ORIGIN` | `*` | Orígenes permitidos |
+| `RESEND_API_KEY` | (vacío) | Si está vacía, no se envían mails |
+| `EMAIL_FROM` | (vacío) | Remitente verificado. Vacío usa el sandbox de Resend |
+| `EMAIL_DEV_TO` | (vacío) | En local o sin remitente propio, todos los mails van a esta casilla |
+| `PUBLIC_APP_URL` | (vacío) | URL pública para el enlace de contraseña. En Railway se usa el dominio del servicio |
 
 ## Cómo usar el sistema
 
@@ -129,6 +133,9 @@ Healthcheck: `GET /health` → `{ "ok": true }`.
 | `SEED_DEMO` | `true` la primera vez; después podés pasarlo a `false` |
 | `UPLOAD_DIR` | `/data/uploads` si hay volumen montado en `/data` |
 | `CORS_ORIGIN` | `*` o el dominio público |
+| `RESEND_API_KEY` | API key de Resend. Vacía desactiva el envío |
+| `EMAIL_FROM` | Remitente del dominio verificado. Vacío = sandbox |
+| `EMAIL_DEV_TO` | Casilla que recibe los mails de prueba |
 
 Después del deploy:
 
