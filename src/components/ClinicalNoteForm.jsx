@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import AppointmentSearch from './AppointmentSearch';
+import { StoredImagePreview } from './ClinicalFilePreview';
 
 export default function ClinicalNoteForm({
   patientId,
@@ -17,6 +18,8 @@ export default function ClinicalNoteForm({
   const [pendingFiles, setPendingFiles] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInput = useRef(null);
 
   const selectedAppointment = useMemo(
     () => appointments.find((item) => String(item.id) === String(form.appointmentId)),
@@ -58,6 +61,12 @@ export default function ClinicalNoteForm({
       cancelled = true;
     };
   }, [form.appointmentId, form.professionalId, form.serviceId, selectedAppointment, note?.id]);
+
+  function addFiles(list) {
+    const next = [...(list || [])];
+    if (!next.length) return;
+    setPendingFiles((current) => [...current, ...next]);
+  }
 
   async function submit(ev) {
     ev.preventDefault();
@@ -162,8 +171,11 @@ export default function ClinicalNoteForm({
             <div className="grid gap-2">
               <div className="text-xs font-medium uppercase tracking-wide text-[#70757a]">Archivos actuales</div>
               {note.files.map((file) => (
-                <div key={file.id} className="flex items-center justify-between rounded-lg border border-[#dadce0] px-3 py-2 text-sm">
-                  <span className="truncate">{file.original_name}</span>
+                <div key={file.id} className="flex items-center justify-between gap-3 rounded-lg border border-[#dadce0] px-3 py-2 text-sm">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <StoredImagePreview file={file} />
+                    <span className="truncate">{file.original_name}</span>
+                  </div>
                   <button
                     type="button"
                     className="text-sm text-red-600"
@@ -178,18 +190,54 @@ export default function ClinicalNoteForm({
               ))}
             </div>
           )}
-          <label className="field">
+          <div className="field">
             <span>Imágenes o archivos</span>
+            <p className="text-xs text-[#70757a]">Imágenes, PDF o documentos. Podés arrastrarlos o elegirlos.</p>
+            <button
+              type="button"
+              className={`mt-1 grid min-h-28 place-items-center rounded-xl border border-dashed px-4 py-6 text-center ${
+                dragOver ? 'border-[#1a73e8] bg-[#e8f0fe]' : 'border-[#dadce0] bg-[#f8f9fa]'
+              }`}
+              onClick={() => fileInput.current?.click()}
+              onDragOver={(ev) => {
+                ev.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(ev) => {
+                ev.preventDefault();
+                setDragOver(false);
+                addFiles(ev.dataTransfer.files);
+              }}
+            >
+              <span>
+                <span className="block text-sm font-medium text-[#3c4043]">Arrastrá para subir</span>
+                <span className="mt-1 block text-xs text-[#70757a]">o hacé clic para elegir archivos</span>
+              </span>
+            </button>
             <input
+              ref={fileInput}
+              className="hidden"
               type="file"
               multiple
               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-              onChange={(e) => setPendingFiles([...e.target.files])}
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = '';
+              }}
             />
             {pendingFiles.length > 0 && (
-              <div className="text-xs text-[#70757a]">{pendingFiles.length} archivo(s) para adjuntar</div>
+              <div className="flex flex-wrap gap-3 pt-2">
+                {pendingFiles.map((file) => (
+                  <PendingFile
+                    key={`${file.name}-${file.size}-${file.lastModified}`}
+                    file={file}
+                    onRemove={() => setPendingFiles((current) => current.filter((item) => item !== file))}
+                  />
+                ))}
+              </div>
             )}
-          </label>
+          </div>
         </div>
         <div className="flex justify-end gap-2 border-t border-[#dadce0] px-5 py-3">
           <button type="button" className="pill-btn" onClick={onClose}>
@@ -201,6 +249,56 @@ export default function ClinicalNoteForm({
         </div>
       </form>
     </div>
+  );
+}
+
+function PendingFile({ file, onRemove }) {
+  const [url, setUrl] = useState('');
+  const [open, setOpen] = useState(false);
+  const isImage = String(file.type || '').startsWith('image/');
+
+  useEffect(() => {
+    if (!isImage) return undefined;
+    const next = URL.createObjectURL(file);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [file, isImage]);
+
+  return (
+    <>
+      <div className="relative">
+        {isImage && url ? (
+          <button type="button" onClick={() => setOpen(true)} title="Ver imagen">
+            <img src={url} alt={file.name} className="h-24 w-24 rounded-lg border border-[#dadce0] object-cover" />
+          </button>
+        ) : (
+          <div className="max-w-40 truncate rounded-lg border border-[#dadce0] px-3 py-2 text-xs">{file.name}</div>
+        )}
+        <button
+          type="button"
+          aria-label="Quitar archivo"
+          className="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-[#3c4043] text-sm font-medium leading-none text-white shadow"
+          onClick={onRemove}
+        >
+          ×
+        </button>
+      </div>
+      {open && url && (
+        <div className="modal-backdrop stacked" onClick={() => setOpen(false)}>
+          <div className="relative max-h-[90vh] max-w-[min(960px,92vw)]" onClick={(ev) => ev.stopPropagation()}>
+            <button
+              type="button"
+              aria-label="Cerrar vista previa"
+              className="absolute -right-2 -top-2 grid h-8 w-8 place-items-center rounded-full bg-[#3c4043] text-lg text-white"
+              onClick={() => setOpen(false)}
+            >
+              ×
+            </button>
+            <img src={url} alt={file.name} className="max-h-[90vh] max-w-full rounded-xl bg-white object-contain" />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

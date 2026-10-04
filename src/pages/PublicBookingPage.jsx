@@ -14,6 +14,7 @@ export default function PublicBookingPage({ kind }) {
   const [slots, setSlots] = useState([]);
   const [serviceId, setServiceId] = useState('');
   const [selected, setSelected] = useState(null);
+  const [step, setStep] = useState('horario');
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' });
   const [done, setDone] = useState(null);
   const [error, setError] = useState('');
@@ -48,6 +49,7 @@ export default function PublicBookingPage({ kind }) {
       .then((res) => {
         setSlots(res.data.slots || []);
         setSelected(null);
+        setStep('horario');
       })
       .catch(() => setSlots([]));
   }, [calendar, date, kind, slug, serviceId]);
@@ -87,6 +89,15 @@ export default function PublicBookingPage({ kind }) {
     );
   }
 
+  const fields = (calendar.bookingFields?.length
+    ? calendar.bookingFields
+    : [
+        { key: 'name', label: 'Nombre', type: 'text', enabled: true, required: true },
+        { key: 'phone', label: 'Teléfono', type: 'tel', enabled: true, required: true },
+        { key: 'email', label: 'Email', type: 'email', enabled: true, required: false },
+      ]
+  ).filter((field) => field.enabled);
+
   if (done) {
     return (
       <PublicShell>
@@ -95,6 +106,47 @@ export default function PublicBookingPage({ kind }) {
           <p className="mt-3 text-[#70757a]">
             {done.service?.name} con {done.professional?.name} el {formatTime(new Date(done.starts_at), calendar.timezone)} hs.
           </p>
+        </div>
+      </PublicShell>
+    );
+  }
+
+  if (step === 'datos' && selected) {
+    return (
+      <PublicShell>
+        <div className="min-h-full bg-white">
+          <div className="border-b border-[#dadce0] bg-[#e8f0fe] px-4 py-2 text-sm text-[#174ea6] sm:px-6">
+            Reserva online · {calendar.clinicName}
+          </div>
+          <div className="mx-auto max-w-md px-4 py-6 sm:px-6">
+            <button className="pill-btn mb-4" type="button" onClick={() => setStep('horario')}>
+              Volver al horario
+            </button>
+            <h1 className="text-2xl">Tus datos</h1>
+            <p className="mt-2 text-sm text-[#70757a]">
+              {calendar.name} · {format(date, "EEEE d 'de' MMMM", { locale: es })} · {formatSlotLabel(selected, kind)}
+            </p>
+            <form className="mt-6 space-y-3" onSubmit={book}>
+              {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+              {fields.map((field) => (
+                <label className="field" key={field.key}>
+                  <span>
+                    {field.label}
+                    {field.required ? '' : ' (opcional)'}
+                  </span>
+                  <input
+                    type={field.type === 'email' ? 'email' : field.type === 'tel' ? 'tel' : 'text'}
+                    value={form[field.key] || ''}
+                    onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+                    required={field.required}
+                  />
+                </label>
+              ))}
+              <button className="pill-btn primary" type="submit">
+                Confirmar turno
+              </button>
+            </form>
+          </div>
         </div>
       </PublicShell>
     );
@@ -163,15 +215,12 @@ export default function PublicBookingPage({ kind }) {
             {!slots.length && <div className="text-sm text-[#70757a]">No hay horarios disponibles este día.</div>}
           </div>
           {selected && (
-            <form className="mt-8 max-w-md space-y-3" onSubmit={book}>
-              {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-              <label className="field"><span>Nombre</span><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
-              <label className="field"><span>Teléfono</span><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required /></label>
-              <label className="field"><span>Email</span><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-              <button className="pill-btn primary" type="submit">
-                Confirmar turno
+            <div className="fixed bottom-20 left-1/2 z-20 flex w-[min(100%-2rem,24rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-full border border-[#dadce0] bg-white p-2 shadow-lg">
+              <span className="pl-3 text-sm font-medium">{formatSlotLabel(selected, kind)}</span>
+              <button className="pill-btn primary" type="button" onClick={() => setStep('datos')}>
+                Continuar
               </button>
-            </form>
+            </div>
           )}
         </div>
       </div>

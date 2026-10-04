@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { Pager, usePaged } from '../components/Pagination';
 import { Share2 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { can } from '../lib/permissions';
 import { useClinic } from '../clinic';
 import ShareDialog from '../components/ShareDialog';
+import { EntityPhoto, PhotoField } from '../components/PhotoField';
+import ExtraFields from '../components/ExtraFields';
 
 const COLORS = ['#0b8043', '#1a73e8', '#e37400', '#d50000', '#9334e6', '#039be5'];
 
@@ -13,6 +16,7 @@ export default function ServicesPage() {
   const { user } = useAuth();
   const [editing, setEditing] = useState(null);
   const [shareItem, setShareItem] = useState(null);
+  const paged = usePaged(services);
 
   return (
     <div className="h-full overflow-auto p-4 sm:p-6">
@@ -25,10 +29,16 @@ export default function ServicesPage() {
         )}
       </div>
       <div className="grid gap-3">
-        {services.map((service) => (
+        {paged.items.map((service) => (
           <div key={service.id} className="flex flex-col gap-3 rounded-xl border border-[#dadce0] p-4 sm:flex-row sm:items-center sm:gap-4">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="h-10 w-10 shrink-0 rounded-lg" style={{ background: service.color }} />
+              <EntityPhoto
+                kind="services"
+                id={service.id}
+                hasPhoto={Boolean(service.photo)}
+                className="h-10 w-10 rounded-lg"
+                fallback={<span className="h-10 w-10 shrink-0 rounded-lg" style={{ background: service.color }} />}
+              />
               <div className="min-w-0 flex-1">
                 <div className="font-medium">{service.name}</div>
                 <div className="truncate text-sm text-[#70757a]">
@@ -53,13 +63,15 @@ export default function ServicesPage() {
           </div>
         ))}
       </div>
+      <Pager page={paged.page} pages={paged.pages} total={paged.total} pageSize={paged.pageSize} onPage={paged.setPage} />
       {editing && (
         <ServiceForm
           form={editing}
           professionals={professionals}
           onClose={() => setEditing(null)}
-          onSave={async (body) => {
-            await api.saveService(editing.id, body);
+          onSave={async (body, photo) => {
+            const saved = await api.saveService(editing.id, body);
+            if (photo) await api.uploadPhoto('services', saved.data.id, photo);
             await reload();
             setEditing(null);
           }}
@@ -82,6 +94,7 @@ export default function ServicesPage() {
 
 function ServiceForm({ form, professionals, onClose, onSave }) {
   const [state, setState] = useState(form);
+  const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -100,7 +113,8 @@ function ServiceForm({ form, professionals, onClose, onSave }) {
               active: true,
               shareEnabled: true,
               professionalIds: state.professionalIds,
-            });
+              extra: state.extra || {},
+            }, photo);
           } catch (err) {
             setError(err.message);
           }
@@ -109,6 +123,7 @@ function ServiceForm({ form, professionals, onClose, onSave }) {
         <div className="border-b border-[#dadce0] px-5 py-4 text-lg">{state.id ? 'Editar servicio' : 'Nuevo servicio'}</div>
         <div className="grid gap-3 px-5 py-4">
           {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+          <PhotoField kind="services" id={state.id} hasPhoto={Boolean(form.photo)} file={photo} onFile={setPhoto} />
           <label className="field"><span>Nombre</span><input value={state.name} onChange={(e) => setState({ ...state, name: e.target.value })} required /></label>
           <div className="grid grid-cols-2 gap-3">
             <label className="field"><span>Código</span><input value={state.code} onChange={(e) => setState({ ...state, code: e.target.value })} /></label>
@@ -149,6 +164,7 @@ function ServiceForm({ form, professionals, onClose, onSave }) {
               })}
             </div>
           </div>
+          <ExtraFields entity="service" value={state.extra} onChange={(extra) => setState({ ...state, extra })} />
         </div>
         <div className="flex justify-end gap-2 border-t border-[#dadce0] px-5 py-3">
           <button type="button" className="pill-btn" onClick={onClose}>Cerrar</button>
@@ -160,7 +176,7 @@ function ServiceForm({ form, professionals, onClose, onSave }) {
 }
 
 function emptyService() {
-  return { id: null, name: '', code: '', durationMin: 30, color: '#0b8043', price: '', professionalIds: [] };
+  return { id: null, name: '', code: '', durationMin: 30, color: '#0b8043', price: '', professionalIds: [], extra: {} };
 }
 
 function toForm(service) {
@@ -172,5 +188,7 @@ function toForm(service) {
     color: service.color,
     price: service.price || '',
     professionalIds: (service.professionals || []).map((p) => p.id),
+    photo: service.photo || '',
+    extra: service.extra || {},
   };
 }

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { FileText, Paperclip } from 'lucide-react';
+import { Paperclip } from 'lucide-react';
 import { api, getToken } from '../api';
 import { useClinic } from '../clinic';
 import { formatCustomValue, noteHeading, noteMetaLine, visibleCustomValues } from '../lib/clinical';
 import PatientForm, { toPatientForm } from '../components/PatientForm';
 import ClinicalNoteForm from '../components/ClinicalNoteForm';
+import { StoredImagePreview } from '../components/ClinicalFilePreview';
 
 export default function PatientDetailPage() {
   const { id } = useParams();
@@ -162,13 +163,21 @@ function ClinicalFileLink({ file }) {
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank', 'noopener');
   }
+  if (isImage) {
+    return (
+      <div className="inline-flex max-w-full items-center gap-2 rounded-lg border border-[#dadce0] px-3 py-2 text-left text-sm">
+        <StoredImagePreview file={file} />
+        <span className="truncate">{file.original_name}</span>
+      </div>
+    );
+  }
   return (
     <button
       type="button"
       className="inline-flex max-w-full items-center gap-2 rounded-lg border border-[#dadce0] px-3 py-2 text-left text-sm hover:bg-[#f8f9fa]"
       onClick={() => openFile().catch(() => {})}
     >
-      {isImage ? <FileText size={14} /> : <Paperclip size={14} />}
+      <Paperclip size={14} />
       <span className="truncate">{file.original_name}</span>
     </button>
   );

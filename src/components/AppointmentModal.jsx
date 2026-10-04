@@ -6,10 +6,10 @@ import ClinicalNoteForm from './ClinicalNoteForm';
 import ClinicalHistorySummary from './ClinicalHistorySummary';
 
 const STATUSES = [
-  { id: 'RESERVADO', label: 'Reservado' },
-  { id: 'CONFIRMADO', label: 'Confirmado' },
-  { id: 'COMPLETADO', label: 'Completado' },
-  { id: 'CANCELADO', label: 'Cancelado' },
+  { id: 'RESERVADO', label: 'Reservado', color: '#1a73e8', tint: '#e8f0fe' },
+  { id: 'CONFIRMADO', label: 'Confirmado', color: '#0b8043', tint: '#e6f4ea' },
+  { id: 'COMPLETADO', label: 'Completado', color: '#5f6368', tint: '#f1f3f4' },
+  { id: 'CANCELADO', label: 'Cancelado', color: '#d93025', tint: '#fce8e6' },
 ];
 
 export default function AppointmentModal({
@@ -61,6 +61,15 @@ export default function AppointmentModal({
       });
     }
   }, [open, appointment, defaults, professionals, services, tz]);
+
+  useEffect(() => {
+    if (!open || !form.patientId) return;
+    loadClinical().catch(() => {});
+  }, [open, form.patientId]);
+
+  const evolutionCount = clinicalNotes.filter(
+    (note) => String(note.appointment?.id || note.appointment_id) === String(form.id)
+  ).length;
 
   const selectedService = useMemo(
     () => services.find((item) => String(item.id) === String(form.serviceId)),
@@ -183,59 +192,81 @@ export default function AppointmentModal({
               <span>Hora</span>
               <input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} required />
             </label>
-            <label className="field">
+            <div className="field col-span-1 sm:col-span-2">
               <span>Estado</span>
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                {STATUSES.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Estado del turno">
+                {STATUSES.map((item) => {
+                  const active = form.status === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      className="pill-btn text-sm"
+                      style={
+                        active
+                          ? { background: item.color, borderColor: item.color, color: '#fff' }
+                          : { background: item.tint, borderColor: item.tint, color: item.color }
+                      }
+                      onClick={() => setForm({ ...form, status: item.id })}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <label className="field col-span-1 sm:col-span-2">
               <span>Notas</span>
               <textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </label>
           </div>
         </div>
-        <div className="flex items-center justify-between border-t border-[#dadce0] px-5 py-3">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="border-t border-[#dadce0] px-5 py-3">
+          {form.patientId && (
+            <div className="mb-3">
+              {form.id && (
+                <p className="mb-2 text-sm text-[#3c4043]">
+                  {evolutionCount === 0
+                    ? 'Este turno no tiene evoluciones.'
+                    : evolutionCount === 1
+                      ? 'Este turno tiene 1 evolución.'
+                      : `Este turno tiene ${evolutionCount} evoluciones.`}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="pill-btn border-transparent bg-[#e8f0fe] text-sm text-[#1a73e8] hover:bg-[#d2e3fc]"
+                onClick={() => openClinical('note')}
+              >
+                Evolución de consulta
+              </button>
+              <button
+                type="button"
+                className="pill-btn border-transparent bg-[#e8f0fe] text-sm text-[#1a73e8] hover:bg-[#d2e3fc]"
+                onClick={() => openClinical('summary')}
+              >
+                Ver historia
+              </button>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
             {form.id && appointment?.status !== 'CANCELADO' && (
-              <button type="button" className="text-sm text-red-600" onClick={() => onCancelTurno?.(form.id)}>
+              <button type="button" className="pill-btn border-transparent bg-red-50 text-sm text-red-700 hover:bg-red-100" onClick={() => onCancelTurno?.(form.id)}>
                 Cancelar turno
               </button>
             )}
-            {form.patientId && (
-              <>
-                <button
-                  type="button"
-                  className="text-sm text-[#1a73e8]"
-                  onClick={() => openClinical('note')}
-                >
-                  Nueva entrada
-                </button>
-                <button
-                  type="button"
-                  className="text-sm text-[#1a73e8]"
-                  onClick={() => openClinical('summary')}
-                >
-                  Ver historia
-                </button>
-              </>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <button type="button" className="pill-btn" onClick={onClose}>
-              Cerrar
-            </button>
-            <button
-              type="submit"
-              className="pill-btn primary"
-              disabled={saving}
-            >
-              Guardar
-            </button>
+            <div className="ml-auto flex gap-2">
+              <button type="button" className="pill-btn" onClick={onClose}>
+                Cerrar
+              </button>
+              <button type="submit" className="pill-btn primary" disabled={saving}>
+                Guardar
+              </button>
+            </div>
           </div>
         </div>
       </form>

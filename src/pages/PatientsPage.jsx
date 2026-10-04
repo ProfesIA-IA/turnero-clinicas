@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Pager, usePaged } from '../components/Pagination';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../auth';
@@ -11,10 +12,12 @@ export default function PatientsPage() {
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState('');
   const { user } = useAuth();
+  const paged = usePaged(rows, { resetKey: q });
 
   async function load(term = q) {
     const params = new URLSearchParams();
     if (term.trim()) params.set('q', term.trim());
+    params.set('limit', '200');
     const res = await api.patients(`?${params.toString()}`);
     setRows(res.data);
   }
@@ -54,7 +57,7 @@ export default function PatientsPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {paged.items.map((row) => (
               <tr key={row.id} className="border-t border-[#dadce0]">
                 <td className="px-4 py-3 font-medium">
                   <Link className="text-[#1a73e8] hover:underline" to={`/pacientes/${row.id}`}>
@@ -85,6 +88,7 @@ export default function PatientsPage() {
           </tbody>
         </table>
       </div>
+      <Pager page={paged.page} pages={paged.pages} total={paged.total} pageSize={paged.pageSize} onPage={paged.setPage} />
       {editing && (
         <PatientForm
           form={editing}

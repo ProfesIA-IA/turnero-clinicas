@@ -1,10 +1,22 @@
 import crypto from 'crypto';
+import path from 'path';
 import bcrypt from 'bcryptjs';
+import multer from 'multer';
 import { Router } from 'express';
-import { login, logout, readToken } from '../middleware/auth.js';
+import { login, logout, publicUser, readToken } from '../middleware/auth.js';
 import { query } from '../db/pool.js';
 import { config } from '../config.js';
 import { sendPasswordLink } from '../lib/mail.js';
+import { deleteObject, readObject, saveObject } from '../lib/objectStore.js';
+
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (String(file.mimetype || '').startsWith('image/')) cb(null, true);
+    else cb(new Error('La foto tiene que ser una imagen'));
+  },
+});
 
 const router = Router();
 
@@ -25,6 +37,80 @@ router.get('/me', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'No autorizado' });
   res.json({ user: req.user });
 });
+
+router.put('/me', async (req, res, next) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'No autorizado' });
+    if (req.user.isSystem) return res.status(403).json({ error: 'La cuenta de administrador se configura por variables de entorno' });
+    const name = String(req.body?.name || '').trim();
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const phone = String(req.body?.phone || '').trim();
+    const password = String(req.body?.password || '');
+    const currentPassword = String(req.body?.currentPassword || '');
+    if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'El email no es válido' });
+    }
+    if (password && password.length < 6) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+    if (password) {
+      const row = await query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+      const ok = await bcrypt.compare(currentPassword, row.rows[0]?.password_hash || '');
+      if (!ok) return res.status(400).json({ error: 'La contraseña actual no coincide' });
+    }
+    const params = [name, email || null, phone || null, req.user.id];
+    let sql = 'UPDATE users SET name = $1, email = $2, phone = $3 WHERE id = $4';
+    if (password) {
+      params.splice(3, 0, await bcrypt.hash(password, 10));
+      sql = 'UPDATE users SET name = $1, email = $2, phone = $3, password_hash = $4 WHERE id = $5';
+    }
+    const result = await query(`${sql} RETURNING *`, params);
+    res.json({ user: publicUser(result.rows[0]) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/me/photo', async (req, res, next) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'No autorizado' });
+    const result = await query('SELECT photo FROM users WHERE id = $1', [req.user.id]);
+    if (!result.rows[0]?.photo) return res.status(404).json({ error: 'Sin foto' });
+    const body = await readObject(result.rows[0].photo);
+    if (!body) return res.status(404).json({ error: 'Sin foto' });
+    const ext = path.extname(result.rows[0].photo).toLowerCase();
+    const types = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' };
+    res.setHeader('Content-Type', types[ext] || 'image/jpeg');
+    body.pipe(res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/me/photo', (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'No autorizado' });
+  if (req.user.isSystem) return res.status(403).json({ error: 'La cuenta de administrador se configura por variables de entorno' });
+  photoUpload.single('photo')(req, res, (err) => {
+    if (err) return next(err);
+    saveMyPhoto(req, res, next).catch(next);
+  });
+});
+
+async function saveMyPhoto(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Elegí una imagen' });
+    const current = await query('SELECT photo FROM users WHERE id = $1', [req.user.id]);
+    const key = `${crypto.randomUUID()}${path.extname(req.file.originalname || '').slice(0, 8) || '.jpg'}`;
+    await saveObject(key, req.file.buffer, req.file.mimetype);
+    if (current.rows[0]?.photo) await deleteObject(current.rows[0].photo);
+    await query('UPDATE users SET photo = $1 WHERE id = $2', [key, req.user.id]);
+    const user = await query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    res.json({ user: publicUser(user.rows[0]) });
+  } catch (err) {
+    next(err);
+  }
+}
 
 router.post('/olvide', async (req, res, next) => {
   try {

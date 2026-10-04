@@ -1,4 +1,5 @@
 import { formatCustomValue, noteHeading, noteMetaLine, visibleCustomValues } from '../lib/clinical';
+import { StoredImagePreview } from './ClinicalFilePreview';
 
 export default function ClinicalHistorySummary({
   patient,
@@ -34,8 +35,11 @@ export default function ClinicalHistorySummary({
                 </dl>
               )}
               {note.files?.length > 0 && (
-                <div className="mt-2 text-sm text-[#70757a]">
-                  Archivos: {note.files.map((file) => file.original_name).join(', ')}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {note.files.map((file) => (
+                    <StoredImagePreview key={file.id} file={file} />
+                  ))}
+                  <span className="text-sm text-[#70757a]">{note.files.map((file) => file.original_name).join(', ')}</span>
                 </div>
               )}
             </article>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Pager, usePaged } from '../components/Pagination';
 import { useLocation } from 'react-router-dom';
 import { Share2 } from 'lucide-react';
 import { api } from '../api';
@@ -7,6 +8,8 @@ import { can } from '../lib/permissions';
 import { useClinic } from '../clinic';
 import ShareDialog from '../components/ShareDialog';
 import SchedulesModal from '../components/SchedulesModal';
+import { EntityPhoto, PhotoField } from '../components/PhotoField';
+import ExtraFields from '../components/ExtraFields';
 
 const COLORS = ['#1a73e8', '#0b8043', '#e37400', '#d50000', '#9334e6', '#039be5', '#f6bf26'];
 
@@ -17,6 +20,7 @@ export default function ProfessionalsPage() {
   const [editing, setEditing] = useState(null);
   const [shareItem, setShareItem] = useState(null);
   const [schedulePro, setSchedulePro] = useState(null);
+  const paged = usePaged(professionals);
 
   useEffect(() => {
     const scheduleId = Number(location.state?.scheduleId);
@@ -36,10 +40,15 @@ export default function ProfessionalsPage() {
         )}
       </div>
       <div className="grid gap-3">
-        {professionals.map((pro) => (
+        {paged.items.map((pro) => (
           <div key={pro.id} className="flex flex-col gap-3 rounded-xl border border-[#dadce0] p-4 sm:flex-row sm:items-center sm:gap-4">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="h-10 w-10 shrink-0 rounded-full" style={{ background: pro.color }} />
+              <EntityPhoto
+                kind="professionals"
+                id={pro.id}
+                hasPhoto={Boolean(pro.photo)}
+                fallback={<span className="h-10 w-10 shrink-0 rounded-full" style={{ background: pro.color }} />}
+              />
               <div className="min-w-0 flex-1">
                 <div className="font-medium">{pro.name}</div>
                 <div className="truncate text-sm text-[#70757a]">
@@ -71,13 +80,15 @@ export default function ProfessionalsPage() {
           </div>
         ))}
       </div>
+      <Pager page={paged.page} pages={paged.pages} total={paged.total} pageSize={paged.pageSize} onPage={paged.setPage} />
       {editing && (
         <ProfessionalForm
           form={editing}
           services={services}
           onClose={() => setEditing(null)}
-          onSave={async (body) => {
-            await api.saveProfessional(editing.id, body);
+          onSave={async (body, photo) => {
+            const saved = await api.saveProfessional(editing.id, body);
+            if (photo) await api.uploadPhoto('professionals', saved.data.id, photo);
             await reload();
             setEditing(null);
           }}
@@ -107,6 +118,7 @@ export default function ProfessionalsPage() {
 
 function ProfessionalForm({ form, services, onClose, onSave }) {
   const [state, setState] = useState(form);
+  const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -126,7 +138,8 @@ function ProfessionalForm({ form, services, onClose, onSave }) {
               active: state.active,
               shareEnabled: state.shareEnabled,
               serviceIds: state.serviceIds,
-            });
+              extra: state.extra || {},
+            }, photo);
           } catch (err) {
             setError(err.message);
           }
@@ -134,6 +147,7 @@ function ProfessionalForm({ form, services, onClose, onSave }) {
       >
         <div className="border-b border-[#dadce0] px-5 py-4 text-lg">{state.id ? 'Editar profesional' : 'Nuevo profesional'}</div>
         <div className="grid gap-3 px-5 py-4">
+          <PhotoField kind="professionals" id={state.id} hasPhoto={Boolean(form.photo)} file={photo} onFile={setPhoto} />
           {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <label className="field"><span>Nombre</span><input value={state.name} onChange={(e) => setState({ ...state, name: e.target.value })} required /></label>
           <div className="grid grid-cols-2 gap-3">
@@ -174,6 +188,7 @@ function ProfessionalForm({ form, services, onClose, onSave }) {
               })}
             </div>
           </div>
+          <ExtraFields entity="professional" value={state.extra} onChange={(extra) => setState({ ...state, extra })} />
         </div>
         <div className="flex justify-end gap-2 border-t border-[#dadce0] px-5 py-3">
           <button type="button" className="pill-btn" onClick={onClose}>Cerrar</button>
@@ -185,7 +200,7 @@ function ProfessionalForm({ form, services, onClose, onSave }) {
 }
 
 function emptyPro() {
-  return { id: null, name: '', code: '', email: '', phone: '', color: '#1a73e8', bio: '', active: true, shareEnabled: true, serviceIds: [] };
+  return { id: null, name: '', code: '', email: '', phone: '', color: '#1a73e8', bio: '', active: true, shareEnabled: true, serviceIds: [], extra: {} };
 }
 
 function toForm(pro) {
@@ -197,8 +212,10 @@ function toForm(pro) {
     phone: pro.phone || '',
     color: pro.color,
     bio: pro.bio || '',
+    photo: pro.photo || '',
     active: pro.active,
     shareEnabled: pro.share_enabled,
     serviceIds: (pro.services || []).map((s) => s.id),
+    extra: pro.extra || {},
   };
 }

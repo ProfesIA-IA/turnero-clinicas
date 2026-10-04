@@ -44,6 +44,12 @@ async function requestForm(path, form) {
 export const api = {
   login: (body) => request('/api/auth/login', { method: 'POST', body }),
   me: () => request('/api/auth/me'),
+  saveProfile: (body) => request('/api/auth/me', { method: 'PUT', body }),
+  uploadMyPhoto: (file) => {
+    const form = new FormData();
+    form.append('photo', file);
+    return requestForm('/api/auth/me/photo', form);
+  },
   logout: () => request('/api/auth/logout', { method: 'POST', body: {} }),
   forgotPassword: (email) => request('/api/auth/olvide', { method: 'POST', body: { email } }),
   resetPassword: (body) => request('/api/auth/restablecer', { method: 'POST', body }),
@@ -115,6 +121,12 @@ export const api = {
       ? request(`/api/clinical/fields/${id}`, { method: 'PUT', body })
       : request('/api/clinical/fields', { method: 'POST', body }),
   deleteClinicalField: (id) => request(`/api/clinical/fields/${id}`, { method: 'DELETE' }),
+  extraFields: (params = '') => request(`/api/extra-fields${params}`),
+  saveExtraField: (id, body) =>
+    id
+      ? request(`/api/extra-fields/${id}`, { method: 'PUT', body })
+      : request('/api/extra-fields', { method: 'POST', body }),
+  deleteExtraField: (id) => request(`/api/extra-fields/${id}`, { method: 'DELETE' }),
   appointments: (params = '') => request(`/api/appointments${params}`),
   saveAppointment: (id, body) =>
     id
@@ -132,4 +144,9 @@ export const api = {
   saveUser: (id, body) =>
     id ? request(`/api/users/${id}`, { method: 'PUT', body }) : request('/api/users', { method: 'POST', body }),
   deleteUser: (id) => request(`/api/users/${id}`, { method: 'DELETE' }),
+  uploadPhoto: (kind, id, file) => {
+    const form = new FormData();
+    form.append('photo', file);
+    return requestForm(`/api/${kind}/${id}/photo`, form);
+  },
 };

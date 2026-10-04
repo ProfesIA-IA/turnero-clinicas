@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { can, ROLE_LABELS } from '../lib/permissions';
 import { useAuth } from '../auth';
+import { EntityPhoto, PhotoField } from '../components/PhotoField';
+import { Pager, usePaged } from '../components/Pagination';
+import ExtraFields from '../components/ExtraFields';
 
 const EMPTY = {
   username: '',
@@ -15,6 +18,7 @@ const EMPTY = {
   professionalId: '',
   patientId: '',
   permissions: {},
+  extra: {},
 };
 
 export default function UsersPage() {
@@ -25,6 +29,7 @@ export default function UsersPage() {
   const [patients, setPatients] = useState([]);
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState('');
+  const paged = usePaged(users);
 
   async function load() {
     const [userRes, metaRes, proRes, patientRes] = await Promise.all([
@@ -62,8 +67,14 @@ export default function UsersPage() {
       </div>
       {error && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
       <div className="grid gap-3">
-        {users.map((user) => (
+        {paged.items.map((user) => (
           <div key={user.id} className="flex flex-col gap-3 rounded-xl border border-[#dadce0] p-4 sm:flex-row sm:items-center">
+            <EntityPhoto
+              kind="users"
+              id={user.id}
+              hasPhoto={user.hasPhoto}
+              fallback={<span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#e8f0fe] text-sm font-medium text-[#1a73e8]">{user.name?.[0] || '?'}</span>}
+            />
             <div className="min-w-0 flex-1">
               <div className="font-medium">
                 {user.name}{' '}
@@ -100,6 +111,7 @@ export default function UsersPage() {
           </div>
         ))}
       </div>
+      <Pager page={paged.page} pages={paged.pages} total={paged.total} pageSize={paged.pageSize} onPage={paged.setPage} />
       {editing && meta && (
         <UserForm
           form={editing}
@@ -107,8 +119,9 @@ export default function UsersPage() {
           professionals={professionals}
           patients={patients}
           onClose={() => setEditing(null)}
-          onSave={async (body) => {
-            await api.saveUser(editing.id, body);
+          onSave={async (body, photo) => {
+            const saved = await api.saveUser(editing.id, body);
+            if (photo) await api.uploadPhoto('users', saved.data.id, photo);
             await load();
             setEditing(null);
           }}
@@ -132,11 +145,14 @@ function toForm(user) {
     professionalId: user.professionalId || '',
     patientId: user.patientId || '',
     permissions: { ...user.permissions },
+    extra: user.extra || {},
+    hasPhoto: user.hasPhoto,
   };
 }
 
 function UserForm({ form, meta, professionals, patients, onClose, onSave }) {
   const [state, setState] = useState(form);
+  const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const permissions = meta.permissions || [];
@@ -183,7 +199,8 @@ function UserForm({ form, meta, professionals, patients, onClose, onSave }) {
               professionalId: state.professionalId || null,
               patientId: state.patientId || null,
               permissions: state.permissions,
-            });
+              extra: state.extra || {},
+            }, photo);
           } catch (err) {
             setError(err.message);
           }
@@ -192,6 +209,7 @@ function UserForm({ form, meta, professionals, patients, onClose, onSave }) {
         <div className="border-b border-[#dadce0] px-5 py-4 text-lg">{state.id ? 'Editar usuario' : 'Nuevo usuario'}</div>
         <div className="grid gap-3 px-5 py-4">
           {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+          <PhotoField kind="users" id={state.id} hasPhoto={form.hasPhoto} file={photo} onFile={setPhoto} />
           <label className="field">
             <span>Nombre</span>
             <input value={state.name} onChange={(e) => setState({ ...state, name: e.target.value })} required />
@@ -251,35 +269,30 @@ function UserForm({ form, meta, professionals, patients, onClose, onSave }) {
             </select>
           </label>
           {state.role === 'profesional' && (
-            <label className="field">
-              <span>Profesional</span>
-              <select
-                value={state.professionalId}
-                onChange={(e) => setState({ ...state, professionalId: e.target.value })}
-                required
-              >
-                <option value="">Elegir…</option>
-                {professionals.map((pro) => (
-                  <option key={pro.id} value={pro.id}>
-                    {pro.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <RecordSearch
+              label="Profesional"
+              placeholder="Buscar profesional…"
+              value={state.professionalId}
+              options={professionals}
+              onChange={(id) => setState({ ...state, professionalId: id })}
+            />
           )}
           {state.role === 'paciente' && (
-            <label className="field">
-              <span>Paciente</span>
-              <select value={state.patientId} onChange={(e) => setState({ ...state, patientId: e.target.value })} required>
-                <option value="">Elegir…</option>
-                {patients.map((patient) => (
-                  <option key={patient.id} value={patient.id}>
-                    {patient.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <RecordSearch
+              label="Paciente"
+              placeholder="Buscar paciente…"
+              value={state.patientId}
+              options={patients}
+              onSearch={async (term) => {
+                const params = new URLSearchParams({ limit: '30' });
+                if (term.trim()) params.set('q', term.trim());
+                const res = await api.patients(`?${params.toString()}`);
+                setPatients(res.data || []);
+              }}
+              onChange={(id) => setState({ ...state, patientId: id })}
+            />
           )}
+          <ExtraFields entity="user" value={state.extra} onChange={(extra) => setState({ ...state, extra })} />
           <div className="field">
             <span>Permisos</span>
             <input
@@ -331,6 +344,49 @@ function UserForm({ form, meta, professionals, patients, onClose, onSave }) {
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function RecordSearch({ label, placeholder, value, options, onChange, onSearch }) {
+  const [term, setTerm] = useState('');
+  const selected = options.find((item) => String(item.id) === String(value));
+  const shown = options.filter((item) => item.name.toLowerCase().includes(term.trim().toLowerCase()));
+
+  useEffect(() => {
+    if (!onSearch) return undefined;
+    const handle = setTimeout(() => {
+      onSearch(term).catch(() => {});
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [term]);
+
+  return (
+    <div className="field">
+      <span>{label}</span>
+      <input
+        value={term}
+        placeholder={selected ? selected.name : placeholder}
+        onChange={(e) => setTerm(e.target.value)}
+      />
+      <input className="sr-only" tabIndex={-1} value={value || ''} required onChange={() => {}} />
+      {selected && !term && <div className="text-sm text-[#174ea6]">{selected.name}</div>}
+      <div className="max-h-40 overflow-auto rounded-lg border border-[#dadce0]">
+        {shown.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#f8f9fa] ${String(item.id) === String(value) ? 'bg-[#e8f0fe]' : ''}`}
+            onClick={() => {
+              onChange(String(item.id));
+              setTerm('');
+            }}
+          >
+            {item.name}
+          </button>
+        ))}
+        {!shown.length && <div className="px-3 py-2 text-sm text-[#70757a]">Sin resultados</div>}
+      </div>
     </div>
   );
 }

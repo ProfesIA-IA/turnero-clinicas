@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { recordScope } from '../lib/permissions.js';
+import { extraObject } from '../lib/extra.js';
 
 const router = Router();
 
@@ -60,15 +61,15 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { name, phone, email, notes } = req.body || {};
+    const { name, phone, email, notes, extra } = req.body || {};
     if (!String(name || '').trim()) {
       return res.status(400).json({ error: 'El nombre es obligatorio' });
     }
     const result = await query(
-      `INSERT INTO patients (name, phone, email, notes)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO patients (name, phone, email, notes, extra)
+       VALUES ($1, $2, $3, $4, $5::jsonb)
        RETURNING *`,
-      [name.trim(), emptyToNull(phone), emptyToNull(email), emptyToNull(notes)]
+      [name.trim(), emptyToNull(phone), emptyToNull(email), emptyToNull(notes), JSON.stringify(extraObject(extra))]
     );
     res.status(201).json({ data: result.rows[0] });
   } catch (err) {
@@ -81,16 +82,16 @@ router.put('/:id', async (req, res, next) => {
     const current = await query('SELECT * FROM patients WHERE id = $1', [req.params.id]);
     if (!current.rowCount) return res.status(404).json({ error: 'Paciente no encontrado' });
     const prev = current.rows[0];
-    const { name = prev.name, phone = prev.phone, email = prev.email, notes = prev.notes } = req.body || {};
+    const { name = prev.name, phone = prev.phone, email = prev.email, notes = prev.notes, extra = prev.extra } = req.body || {};
     if (!String(name || '').trim()) {
       return res.status(400).json({ error: 'El nombre es obligatorio' });
     }
     const result = await query(
       `UPDATE patients
-       SET name = $1, phone = $2, email = $3, notes = $4
-       WHERE id = $5
+       SET name = $1, phone = $2, email = $3, notes = $4, extra = $5::jsonb
+       WHERE id = $6
        RETURNING *`,
-      [name.trim(), emptyToNull(phone), emptyToNull(email), emptyToNull(notes), req.params.id]
+      [name.trim(), emptyToNull(phone), emptyToNull(email), emptyToNull(notes), JSON.stringify(extraObject(extra)), req.params.id]
     );
     res.json({ data: result.rows[0] });
   } catch (err) {

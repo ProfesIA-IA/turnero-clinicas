@@ -186,6 +186,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS patient_id INT REFERENCES patients(id
 ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_system BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS photo TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE professionals ADD COLUMN IF NOT EXISTS photo TEXT;
+ALTER TABLE services ADD COLUMN IF NOT EXISTS photo TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique
   ON users (lower(email))
@@ -198,6 +202,28 @@ CREATE TABLE IF NOT EXISTS password_resets (
   expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS booking_fields JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+CREATE TABLE IF NOT EXISTS extra_field_defs (
+  id SERIAL PRIMARY KEY,
+  entity TEXT NOT NULL CHECK (entity IN ('patient', 'professional', 'service', 'user')),
+  label TEXT NOT NULL,
+  field_type TEXT NOT NULL DEFAULT 'text' CHECK (
+    field_type IN ('text', 'textarea', 'number', 'date', 'select', 'checkbox')
+  ),
+  options JSONB NOT NULL DEFAULT '[]',
+  required BOOLEAN NOT NULL DEFAULT false,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS extra_field_defs_entity_idx ON extra_field_defs (entity, sort_order, id);
+
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS extra JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE professionals ADD COLUMN IF NOT EXISTS extra JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE services ADD COLUMN IF NOT EXISTS extra JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS extra JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'secretaria', 'profesional', 'paciente'));

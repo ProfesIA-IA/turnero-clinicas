@@ -60,12 +60,15 @@ export function publicUser(user) {
     username: user.username,
     name: user.name,
     email: user.email || '',
+    phone: user.phone || '',
     role: user.role || 'admin',
     permissions: expandPermissions(user.permissions),
     professionalId: user.professional_id || null,
     patientId: user.patient_id || null,
     active: user.active !== false,
     isSystem: Boolean(user.is_system),
+    hasPhoto: Boolean(user.photo),
+    extra: user.extra && typeof user.extra === 'object' ? user.extra : {},
   };
 }
 

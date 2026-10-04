@@ -5,7 +5,9 @@ import {
   LogOut,
   Menu,
   Settings,
+  ListPlus,
   Stethoscope,
+  CircleUser,
   UserRound,
   Shield,
   Users,
@@ -26,6 +28,8 @@ const NAV = [
   { to: '/servicios', label: 'Servicios', icon: Stethoscope, perm: 'servicios.ver' },
   { to: '/usuarios', label: 'Usuarios', icon: Shield, perm: 'usuarios.ver' },
   { to: '/configuracion', label: 'Configuración', icon: Settings, perm: 'configuracion.ver' },
+  { to: '/campos', label: 'Campos extra', icon: ListPlus, perm: 'configuracion.ver' },
+  { to: '/perfil', label: 'Mi perfil', icon: CircleUser },
 ];
 
 export default function Layout() {
@@ -70,7 +74,7 @@ export default function Layout() {
               </button>
             </div>
             <nav>
-              {NAV.filter((item) => can(user, item.perm)).map((item) => (
+              {NAV.filter((item) => !item.perm || can(user, item.perm)).map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}

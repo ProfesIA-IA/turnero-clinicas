@@ -8,11 +8,13 @@ import AppointmentsPage from './pages/AppointmentsPage';
 import ProfessionalsPage from './pages/ProfessionalsPage';
 import ServicesPage from './pages/ServicesPage';
 import SettingsPage from './pages/SettingsPage';
+import CamposPage from './pages/CamposPage';
 import PatientsPage from './pages/PatientsPage';
 import PatientDetailPage from './pages/PatientDetailPage';
 import PublicBookingPage from './pages/PublicBookingPage';
 import UsersPage from './pages/UsersPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import ProfilePage from './pages/ProfilePage';
 import { can, firstAllowedPath } from './lib/permissions';
 
 export default function App() {
@@ -41,6 +43,8 @@ export default function App() {
         <Route path="servicios" element={<Guard perm="servicios.ver"><ServicesPage /></Guard>} />
         <Route path="usuarios" element={<Guard perm="usuarios.ver"><UsersPage /></Guard>} />
         <Route path="configuracion" element={<Guard perm="configuracion.ver"><SettingsPage /></Guard>} />
+        <Route path="campos" element={<Guard perm="configuracion.ver"><CamposPage /></Guard>} />
+        <Route path="perfil" element={<ProfilePage />} />
       </Route>
     </Routes>
   );

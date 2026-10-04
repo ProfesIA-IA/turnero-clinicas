@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { uniqueSlug } from '../lib/slug.js';
+import { extraObject } from '../lib/extra.js';
+import { mountPhotos } from '../lib/photos.js';
 
 const router = Router();
+mountPhotos(router, 'services');
 
 async function withProfessionals(service) {
   const pros = await query(
@@ -49,11 +52,12 @@ router.post('/', async (req, res, next) => {
       professionalIds = [],
       shareEnabled = true,
       active = true,
+      extra,
     } = req.body || {};
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
     const result = await query(
-      `INSERT INTO services (name, code, duration_min, color, price, share_slug, share_enabled, active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO services (name, code, duration_min, color, price, share_slug, share_enabled, active, extra)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
        RETURNING *`,
       [
         name,
@@ -64,6 +68,7 @@ router.post('/', async (req, res, next) => {
         uniqueSlug(code || name),
         shareEnabled,
         active,
+        JSON.stringify(extraObject(extra)),
       ]
     );
     await replaceProfessionals(result.rows[0].id, professionalIds);
@@ -87,14 +92,15 @@ router.put('/:id', async (req, res, next) => {
       shareEnabled = prev.share_enabled,
       active = prev.active,
       professionalIds,
+      extra = prev.extra,
     } = req.body || {};
     const result = await query(
       `UPDATE services
        SET name = $1, code = $2, duration_min = $3, color = $4, price = $5,
-           share_enabled = $6, active = $7, updated_at = now()
-       WHERE id = $8
+           share_enabled = $6, active = $7, extra = $8::jsonb, updated_at = now()
+       WHERE id = $9
        RETURNING *`,
-      [name, code, durationMin, color, price, shareEnabled, active, req.params.id]
+      [name, code, durationMin, color, price, shareEnabled, active, JSON.stringify(extraObject(extra)), req.params.id]
     );
     if (Array.isArray(professionalIds)) {
       await replaceProfessionals(result.rows[0].id, professionalIds);

@@ -73,7 +73,7 @@ export default function AppointmentsPage() {
                 <td className="px-4 py-3">{row.patient?.name || '—'}</td>
                 <td className="px-4 py-3">{row.professional?.name}</td>
                 <td className="px-4 py-3">{row.service?.name}</td>
-                <td className="px-4 py-3">{row.status}</td>
+                <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
               </tr>
             ))}
             {!rows.length && (
@@ -105,5 +105,24 @@ export default function AppointmentsPage() {
         }}
       />
     </div>
+  );
+}
+
+const STATUS_BADGE = {
+  RESERVADO: { label: 'Reservado', color: '#1a73e8', tint: '#e8f0fe' },
+  CONFIRMADO: { label: 'Confirmado', color: '#0b8043', tint: '#e6f4ea' },
+  COMPLETADO: { label: 'Completado', color: '#5f6368', tint: '#f1f3f4' },
+  CANCELADO: { label: 'Cancelado', color: '#d93025', tint: '#fce8e6' },
+};
+
+function StatusBadge({ status }) {
+  const item = STATUS_BADGE[status] || { label: status, color: '#5f6368', tint: '#f1f3f4' };
+  return (
+    <span
+      className="inline-flex h-7 items-center rounded-full px-3 text-xs font-medium"
+      style={{ background: item.tint, color: item.color }}
+    >
+      {item.label}
+    </span>
   );
 }

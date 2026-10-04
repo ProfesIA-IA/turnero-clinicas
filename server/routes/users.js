@@ -7,11 +7,14 @@ import { PERMISSIONS, ROLES, normalizePermissions, defaultsFor } from '../lib/pe
 import { issuePasswordLink } from './auth.js';
 import { sendPasswordCredentials } from '../lib/mail.js';
 import { config } from '../config.js';
+import { mountPhotos } from '../lib/photos.js';
+import { extraObject } from '../lib/extra.js';
 
 const router = Router();
+mountPhotos(router, 'users');
 
 const SELECT = `
-  SELECT id, username, name, email, role, permissions, professional_id, patient_id, active, is_system, created_at
+  SELECT id, username, name, email, photo, role, permissions, professional_id, patient_id, active, is_system, extra, created_at
   FROM users
 `;
 
@@ -41,9 +44,9 @@ router.post('/', async (req, res, next) => {
     const body = await validateBody(req.body, { creating: true });
     const hash = await bcrypt.hash(body.password, 10);
     const result = await query(
-      `INSERT INTO users (username, password_hash, name, email, role, permissions, professional_id, patient_id, active, is_system)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, false)
-       RETURNING id, username, name, email, role, permissions, professional_id, patient_id, active, is_system, created_at`,
+      `INSERT INTO users (username, password_hash, name, email, role, permissions, professional_id, patient_id, active, is_system, extra)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, false, $10::jsonb)
+       RETURNING id, username, name, email, role, permissions, professional_id, patient_id, active, is_system, extra, created_at`,
       [
         body.username,
         hash,
@@ -54,6 +57,7 @@ router.post('/', async (req, res, next) => {
         body.professionalId,
         body.patientId,
         body.active,
+        JSON.stringify(body.extra),
       ]
     );
     if (body.sendPassword) await deliverPassword(result.rows[0], body.password, req);
@@ -83,26 +87,27 @@ router.put('/:id', async (req, res, next) => {
       body.professionalId,
       body.patientId,
       body.active,
+      JSON.stringify(body.extra),
       current.id,
     ];
     let sql = `
       UPDATE users
       SET username = $1, name = $2, email = $3, role = $4, permissions = $5::jsonb,
-          professional_id = $6, patient_id = $7, active = $8
-      WHERE id = $9
+          professional_id = $6, patient_id = $7, active = $8, extra = $9::jsonb
+      WHERE id = $10
     `;
     if (body.password) {
       const hash = await bcrypt.hash(body.password, 10);
       sql = `
         UPDATE users
         SET username = $1, name = $2, email = $3, role = $4, permissions = $5::jsonb,
-            professional_id = $6, patient_id = $7, active = $8, password_hash = $10
-        WHERE id = $9
+            professional_id = $6, patient_id = $7, active = $8, extra = $9::jsonb, password_hash = $11
+        WHERE id = $10
       `;
       params.push(hash);
     }
     const result = await query(
-      `${sql} RETURNING id, username, name, email, role, permissions, professional_id, patient_id, active, is_system, created_at`,
+      `${sql} RETURNING id, username, name, email, role, permissions, professional_id, patient_id, active, is_system, extra, created_at`,
       params
     );
     if (body.sendPassword) await deliverPassword(result.rows[0], body.password, req);
@@ -235,6 +240,7 @@ async function validateBody(body, { creating, current }) {
     patientId,
     active: body?.active !== false,
     permissions: normalizePermissions(role, body?.permissions ?? current?.permissions),
+    extra: extraObject(body?.extra ?? current?.extra),
   };
 }
 

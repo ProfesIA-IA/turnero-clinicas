@@ -1,4 +1,4 @@
-import { defineRailway, github, group, postgres, project, service } from "railway/iac";
+import { bucket, defineRailway, github, group, postgres, project, service } from "railway/iac";
 
 /**
  * Turnero Clínicas — plantilla Railway (monolito React + API + Postgres).
@@ -14,6 +14,7 @@ import { defineRailway, github, group, postgres, project, service } from "railwa
  */
 export default defineRailway(() => {
   const db = postgres("Postgres");
+  const imagenes = bucket("imagenes", { region: "iad" });
 
   const app = service("turnero", {
     source: github("ProfesIA-IA/turnero-clinicas", { branch: "main" }),
@@ -39,6 +40,6 @@ export default defineRailway(() => {
   });
 
   return project("turnero-clinicas", {
-    resources: [group("Turnero", [app, db])],
+    resources: [group("Turnero", [app, db, imagenes])],
   });
 });

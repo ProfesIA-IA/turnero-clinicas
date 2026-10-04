@@ -1,4 +1,3 @@
-import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { Router } from 'express';
@@ -6,26 +5,13 @@ import { recordScope } from '../lib/permissions.js';
 import multer from 'multer';
 import { query } from '../db/pool.js';
 import { getClinicSettings } from '../lib/availability.js';
-import { ensureUploadDir, filePath, uploadDir } from '../lib/uploads.js';
+import { deleteObject, readObject, saveObject } from '../lib/objectStore.js';
 
 const ALLOWED_TYPES = /^(image\/|application\/pdf|text\/plain|application\/msword|application\/vnd\.openxmlformats-officedocument|application\/vnd\.ms-excel)/;
 const FIELD_TYPES = new Set(['text', 'textarea', 'number', 'date', 'select', 'checkbox']);
 
-ensureUploadDir();
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    ensureUploadDir();
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || '').slice(0, 12);
-    cb(null, `${randomUUID()}${ext}`);
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 8 },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED_TYPES.test(file.mimetype || '')) return cb(null, true);
@@ -231,7 +217,7 @@ router.delete('/notes/:id', async (req, res, next) => {
   try {
     const files = await query('SELECT stored_name FROM clinical_files WHERE note_id = $1', [req.params.id]);
     await query('DELETE FROM clinical_notes WHERE id = $1', [req.params.id]);
-    for (const file of files.rows) removeStored(file.stored_name);
+    for (const file of files.rows) await deleteObject(file.stored_name);
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -250,11 +236,11 @@ router.get('/files/:id', async (req, res, next) => {
     const result = await query('SELECT * FROM clinical_files WHERE id = $1', [req.params.id]);
     if (!result.rowCount) return res.status(404).json({ error: 'Archivo no encontrado' });
     const file = result.rows[0];
-    const full = filePath(file.stored_name);
-    if (!fs.existsSync(full)) return res.status(404).json({ error: 'Archivo no encontrado' });
+    const body = await readObject(file.stored_name);
+    if (!body) return res.status(404).json({ error: 'Archivo no encontrado' });
     res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
     res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(file.original_name)}`);
-    res.sendFile(full);
+    body.pipe(res);
   } catch (err) {
     next(err);
   }
@@ -265,7 +251,7 @@ router.delete('/files/:id', async (req, res, next) => {
     const result = await query('SELECT * FROM clinical_files WHERE id = $1', [req.params.id]);
     if (!result.rowCount) return res.status(404).json({ error: 'Archivo no encontrado' });
     await query('DELETE FROM clinical_files WHERE id = $1', [req.params.id]);
-    removeStored(result.rows[0].stored_name);
+    await deleteObject(result.rows[0].stored_name);
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -275,16 +261,17 @@ router.delete('/files/:id', async (req, res, next) => {
 async function addFiles(req, res, _next) {
   const note = await query('SELECT id FROM clinical_notes WHERE id = $1', [req.params.id]);
   if (!note.rowCount) {
-    for (const file of req.files || []) removeStored(file.filename);
     return res.status(404).json({ error: 'Entrada no encontrada' });
   }
   const saved = [];
   for (const file of req.files || []) {
+    const key = `${randomUUID()}${path.extname(file.originalname || '').slice(0, 12)}`;
+    await saveObject(key, file.buffer, file.mimetype);
     const result = await query(
       `INSERT INTO clinical_files (note_id, original_name, stored_name, mime_type, size_bytes)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, original_name, mime_type, size_bytes, created_at`,
-      [req.params.id, file.originalname, file.filename, file.mimetype, file.size]
+      [req.params.id, file.originalname, key, file.mimetype, file.size]
     );
     saved.push(result.rows[0]);
   }
@@ -449,13 +436,6 @@ function parseFieldBody(body = {}) {
   };
 }
 
-function removeStored(storedName) {
-  try {
-    fs.unlinkSync(filePath(storedName));
-  } catch {
-    // ignore missing files
-  }
-}
 
 function renderHistoryHtml(patient, notes, settings) {
   const tz = settings?.timezone || 'America/Argentina/Buenos_Aires';

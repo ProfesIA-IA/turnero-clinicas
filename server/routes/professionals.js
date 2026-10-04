@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { uniqueSlug } from '../lib/slug.js';
+import { extraObject } from '../lib/extra.js';
+import { mountPhotos } from '../lib/photos.js';
 
 const router = Router();
+mountPhotos(router, 'professionals');
 
 async function withServices(professional) {
   const services = await query(
@@ -44,14 +47,14 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { name, code, email, phone, color, bio, serviceIds = [], shareEnabled = true, active = true } = req.body || {};
+    const { name, code, email, phone, color, bio, serviceIds = [], shareEnabled = true, active = true, extra } = req.body || {};
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
     const slug = uniqueSlug(code || name);
     const result = await query(
-      `INSERT INTO professionals (name, code, email, phone, color, bio, share_slug, share_enabled, active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO professionals (name, code, email, phone, color, bio, share_slug, share_enabled, active, extra)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
        RETURNING *`,
-      [name, code || null, email || null, phone || null, color || '#1a73e8', bio || null, slug, shareEnabled, active]
+      [name, code || null, email || null, phone || null, color || '#1a73e8', bio || null, slug, shareEnabled, active, JSON.stringify(extraObject(extra))]
     );
     await replaceServices(result.rows[0].id, serviceIds);
     res.status(201).json({ data: await withServices(result.rows[0]) });
@@ -75,14 +78,15 @@ router.put('/:id', async (req, res, next) => {
       shareEnabled = prev.share_enabled,
       active = prev.active,
       serviceIds,
+      extra = prev.extra,
     } = req.body || {};
     const result = await query(
       `UPDATE professionals
        SET name = $1, code = $2, email = $3, phone = $4, color = $5, bio = $6,
-           share_enabled = $7, active = $8, updated_at = now()
-       WHERE id = $9
+           share_enabled = $7, active = $8, extra = $9::jsonb, updated_at = now()
+       WHERE id = $10
        RETURNING *`,
-      [name, code, email, phone, color, bio, shareEnabled, active, req.params.id]
+      [name, code, email, phone, color, bio, shareEnabled, active, JSON.stringify(extraObject(extra)), req.params.id]
     );
     if (Array.isArray(serviceIds)) {
       await replaceServices(result.rows[0].id, serviceIds);

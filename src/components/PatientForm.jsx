@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import ExtraFields from './ExtraFields';
 
 export default function PatientForm({ form, onClose, onSave, stacked = false, requirePhone = false }) {
   const [state, setState] = useState(form);
@@ -22,6 +23,7 @@ export default function PatientForm({ form, onClose, onSave, stacked = false, re
               phone: state.phone,
               email: state.email,
               notes: state.notes,
+              extra: state.extra || {},
             });
           } catch (err) {
             setError(err.message);
@@ -55,6 +57,7 @@ export default function PatientForm({ form, onClose, onSave, stacked = false, re
             <span>Notas</span>
             <textarea rows={2} value={state.notes} onChange={(e) => setState({ ...state, notes: e.target.value })} />
           </label>
+          <ExtraFields entity="patient" value={state.extra} onChange={(extra) => setState({ ...state, extra })} />
         </div>
         <div className="flex justify-end gap-2 border-t border-[#dadce0] px-5 py-3">
           <button type="button" className="pill-btn" onClick={onClose}>
@@ -71,7 +74,7 @@ export default function PatientForm({ form, onClose, onSave, stacked = false, re
 }
 
 export function emptyPatient(overrides = {}) {
-  return { id: null, name: '', phone: '', email: '', notes: '', ...overrides };
+  return { id: null, name: '', phone: '', email: '', notes: '', extra: {}, ...overrides };
 }
 
 export function toPatientForm(row) {
@@ -81,5 +84,6 @@ export function toPatientForm(row) {
     phone: row.phone || '',
     email: row.email || '',
     notes: row.notes || '',
+    extra: row.extra || {},
   };
 }

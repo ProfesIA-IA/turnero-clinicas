@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { availabilityForDay, getClinicSettings } from '../lib/availability.js';
 import { createAppointment } from './appointments.js';
+import { bookingFields, patientFromBooking } from '../lib/bookingFields.js';
 
 const router = Router();
 
@@ -52,7 +53,14 @@ router.get('/profesional/:slug', async (req, res, next) => {
     const data = await publicProfessional(req.params.slug);
     if (!data) return res.status(404).json({ error: 'Calendario no disponible' });
     const settings = await getClinicSettings();
-    res.json({ data: { ...data, clinicName: settings.name, timezone: settings.timezone } });
+    res.json({
+      data: {
+        ...data,
+        clinicName: settings.name,
+        timezone: settings.timezone,
+        bookingFields: bookingFields(settings.booking_fields),
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -63,7 +71,14 @@ router.get('/servicio/:slug', async (req, res, next) => {
     const data = await publicService(req.params.slug);
     if (!data) return res.status(404).json({ error: 'Calendario no disponible' });
     const settings = await getClinicSettings();
-    res.json({ data: { ...data, clinicName: settings.name, timezone: settings.timezone } });
+    res.json({
+      data: {
+        ...data,
+        clinicName: settings.name,
+        timezone: settings.timezone,
+        bookingFields: bookingFields(settings.booking_fields),
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -113,17 +128,18 @@ router.post('/profesional/:slug/book', async (req, res, next) => {
   try {
     const calendar = await publicProfessional(req.params.slug);
     if (!calendar) return res.status(404).json({ error: 'Calendario no disponible' });
-    const { serviceId, startsAt, name, phone, email, notes } = req.body || {};
+    const { serviceId, startsAt } = req.body || {};
     const service = calendar.services.find((item) => String(item.id) === String(serviceId)) || calendar.services[0];
     if (!service) return res.status(400).json({ error: 'Servicio inválido' });
-    if (!name || !phone) return res.status(400).json({ error: 'Nombre y teléfono son obligatorios' });
+    const settings = await getClinicSettings();
+    const patient = patientFromBooking(req.body, bookingFields(settings.booking_fields));
     const created = await createAppointment(
       {
         professionalId: calendar.id,
         serviceId: service.id,
         startsAt,
-        patient: { name, phone, email, notes },
-        notes,
+        patient,
+        notes: patient.notes,
         status: 'RESERVADO',
       },
       'public'
@@ -138,15 +154,16 @@ router.post('/servicio/:slug/book', async (req, res, next) => {
   try {
     const calendar = await publicService(req.params.slug);
     if (!calendar) return res.status(404).json({ error: 'Calendario no disponible' });
-    const { professionalId, startsAt, name, phone, email, notes } = req.body || {};
-    if (!name || !phone) return res.status(400).json({ error: 'Nombre y teléfono son obligatorios' });
+    const { professionalId, startsAt } = req.body || {};
+    const settings = await getClinicSettings();
+    const patient = patientFromBooking(req.body, bookingFields(settings.booking_fields));
     const created = await createAppointment(
       {
         professionalId: professionalId || calendar.professionals[0]?.id,
         serviceId: calendar.id,
         startsAt,
-        patient: { name, phone, email, notes },
-        notes,
+        patient,
+        notes: patient.notes,
         status: 'RESERVADO',
       },
       'public'

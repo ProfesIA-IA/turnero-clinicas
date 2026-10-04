@@ -1,10 +1,28 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { useClinic } from '../clinic';
-import ClinicalFieldsSettings from '../components/ClinicalFieldsSettings';
+
+const DEFAULT_BOOKING_FIELDS = [
+  { key: 'name', label: 'Nombre', enabled: true, required: true },
+  { key: 'phone', label: 'Teléfono', enabled: true, required: true },
+  { key: 'email', label: 'Email', enabled: true, required: false },
+  { key: 'notes', label: 'Notas', enabled: false, required: false },
+];
+
+function bookingFieldsOf(settings) {
+  const saved = Array.isArray(settings?.booking_fields) ? settings.booking_fields : [];
+  return DEFAULT_BOOKING_FIELDS.map((field) => saved.find((item) => item.key === field.key) || field);
+}
+
+function updateField(current, setForm, key, patch) {
+  setForm({
+    ...current,
+    booking_fields: bookingFieldsOf(current).map((field) => (field.key === key ? { ...field, ...patch } : field)),
+  });
+}
 
 export default function SettingsPage() {
-  const { settings, professionals, services, reload } = useClinic();
+  const { settings, reload } = useClinic();
   const [form, setForm] = useState(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -28,6 +46,7 @@ export default function SettingsPage() {
               endHour: Number(current.end_hour),
               slotIntervalMin: Number(current.slot_interval_min),
               weekStartsOn: Number(current.week_starts_on),
+              bookingFields: bookingFieldsOf(current),
             });
             await reload();
             setSaved(true);
@@ -67,11 +86,38 @@ export default function SettingsPage() {
             </select>
           </label>
         </div>
+        <div className="rounded-xl border border-[#dadce0] p-4">
+          <h2 className="text-base">Datos de la reserva online</h2>
+          <p className="mt-1 mb-3 text-sm text-[#70757a]">Qué se le pide a quien reserva un turno desde el enlace público.</p>
+          <div className="space-y-2">
+            {bookingFieldsOf(current).map((field) => (
+              <div key={field.key} className="flex flex-wrap items-center gap-4 text-sm">
+                <label className="flex min-w-36 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={field.enabled}
+                    disabled={field.key === 'name'}
+                    onChange={(e) => updateField(current, setForm, field.key, { enabled: e.target.checked, required: e.target.checked ? field.required : false })}
+                  />
+                  {field.label}
+                </label>
+                <label className="flex items-center gap-2 text-[#70757a]">
+                  <input
+                    type="checkbox"
+                    checked={field.required}
+                    disabled={field.key === 'name' || !field.enabled}
+                    onChange={(e) => updateField(current, setForm, field.key, { required: e.target.checked })}
+                  />
+                  Obligatorio
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
         <button className="pill-btn primary" type="submit">
           {saved ? 'Guardado' : 'Guardar'}
         </button>
       </form>
-      <ClinicalFieldsSettings professionals={professionals} services={services} />
     </div>
   );
 }

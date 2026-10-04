@@ -14,6 +14,7 @@ import blocksRouter from './routes/blocks.js';
 import appointmentsRouter from './routes/appointments.js';
 import publicRouter from './routes/public.js';
 import settingsRouter from './routes/settings.js';
+import extraFieldsRouter from './routes/extraFields.js';
 import agendaRouter from './routes/agenda.js';
 import patientsRouter from './routes/patients.js';
 import clinicalRouter from './routes/clinical.js';
@@ -51,13 +52,21 @@ app.use('/api/auth', async (req, res, next) => {
 const catalogReads = ['agenda.ver', 'turnos.ver', 'usuarios.ver'];
 app.use('/api/professionals', requireAuth, requireByMethod({
   GET: ['profesionales.ver', ...catalogReads],
-  POST: (req) => (req.path.endsWith('/share') ? ['profesionales.compartir'] : ['profesionales.crear']),
+  POST: (req) => {
+    if (req.path.endsWith('/photo')) return ['profesionales.crear', 'profesionales.editar'];
+    if (req.path.endsWith('/share')) return ['profesionales.compartir'];
+    return ['profesionales.crear'];
+  },
   PUT: ['profesionales.editar'],
   DELETE: ['profesionales.eliminar'],
 }), professionalsRouter);
 app.use('/api/services', requireAuth, requireByMethod({
   GET: ['servicios.ver', ...catalogReads],
-  POST: (req) => (req.path.endsWith('/share') ? ['servicios.compartir'] : ['servicios.crear']),
+  POST: (req) => {
+    if (req.path.endsWith('/photo')) return ['servicios.crear', 'servicios.editar'];
+    if (req.path.endsWith('/share')) return ['servicios.compartir'];
+    return ['servicios.crear'];
+  },
   PUT: ['servicios.editar'],
   DELETE: ['servicios.eliminar'],
 }), servicesRouter);
@@ -103,6 +112,12 @@ app.use('/api/clinical', requireAuth, requireByMethod({
     return ['historia.eliminar'];
   },
 }), clinicalRouter);
+app.use('/api/extra-fields', requireAuth, requireByMethod({
+  GET: ['configuracion.ver', 'pacientes.ver', 'profesionales.ver', 'servicios.ver', 'usuarios.ver', 'agenda.ver'],
+  POST: ['configuracion.editar_campos'],
+  PUT: ['configuracion.editar_campos'],
+  DELETE: ['configuracion.eliminar_campos'],
+}), extraFieldsRouter);
 app.use('/api/settings', requireAuth, requireByMethod({
   GET: ['configuracion.ver', 'agenda.ver', 'turnos.ver', 'usuarios.ver'],
   PUT: ['configuracion.editar'],
@@ -110,7 +125,7 @@ app.use('/api/settings', requireAuth, requireByMethod({
 app.use('/api/agenda', requireAuth, requireAny('agenda.ver'), agendaRouter);
 app.use('/api/users', requireAuth, requireByMethod({
   GET: ['usuarios.ver'],
-  POST: ['usuarios.crear'],
+  POST: (req) => (req.path.endsWith('/photo') ? ['usuarios.crear', 'usuarios.editar'] : ['usuarios.crear']),
   PUT: ['usuarios.editar'],
   DELETE: ['usuarios.eliminar'],
 }), usersRouter);
