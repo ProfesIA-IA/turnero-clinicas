@@ -28,6 +28,10 @@ export const config = {
   emailFrom: process.env.EMAIL_FROM || '',
   emailDevTo: process.env.EMAIL_DEV_TO || '',
   publicAppUrl: process.env.PUBLIC_APP_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : ''),
+  kapsoApiKey: process.env.KAPSO_API_KEY || '',
+  kapsoPhoneNumberId: process.env.KAPSO_PHONE_NUMBER_ID || '',
+  kapsoWebhookSecret: process.env.KAPSO_WEBHOOK_SECRET || '',
+  openaiApiKey: process.env.OPENAI_API_KEY || '',
 };
 
 export function assertRuntimeConfig() {

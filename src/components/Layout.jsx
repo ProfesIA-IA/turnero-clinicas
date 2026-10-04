@@ -4,6 +4,7 @@ import {
   Clock3,
   LogOut,
   Menu,
+  MessageCircle,
   Settings,
   ListPlus,
   Stethoscope,
@@ -28,6 +29,7 @@ const NAV = [
   { to: '/servicios', label: 'Servicios', icon: Stethoscope, perm: 'servicios.ver' },
   { to: '/usuarios', label: 'Usuarios', icon: Shield, perm: 'usuarios.ver' },
   { to: '/configuracion', label: 'Configuración', icon: Settings, perm: 'configuracion.ver' },
+  { to: '/chatbot', label: 'Chatbot', icon: MessageCircle, perm: 'configuracion.ver' },
   { to: '/campos', label: 'Campos extra', icon: ListPlus, perm: 'configuracion.ver' },
   { to: '/perfil', label: 'Mi perfil', icon: CircleUser },
 ];

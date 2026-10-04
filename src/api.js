@@ -55,6 +55,8 @@ export const api = {
   resetPassword: (body) => request('/api/auth/restablecer', { method: 'POST', body }),
   settings: () => request('/api/settings'),
   saveSettings: (body) => request('/api/settings', { method: 'PUT', body }),
+  kapsoNumbers: () => request('/api/kapso/numeros').then((res) => res.data || []),
+  connectKapso: (phoneNumberId) => request('/api/kapso/conectar', { method: 'POST', body: { phoneNumberId } }),
   professionals: () => request('/api/professionals'),
   professional: (id) => request(`/api/professionals/${id}`),
   saveProfessional: (id, body) =>

@@ -7,6 +7,7 @@ const SECTIONS = [
   { test: (path) => path.startsWith('/profesionales'), to: '/profesionales', label: 'Profesionales' },
   { test: (path) => path.startsWith('/servicios'), to: '/servicios', label: 'Servicios' },
   { test: (path) => path.startsWith('/configuracion'), to: '/configuracion', label: 'Configuración' },
+  { test: (path) => path.startsWith('/chatbot'), to: '/chatbot', label: 'Chatbot' },
   { test: (path) => path.startsWith('/campos'), to: '/campos', label: 'Campos extra' },
 ];
 

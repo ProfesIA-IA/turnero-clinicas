@@ -205,6 +205,19 @@ CREATE TABLE IF NOT EXISTS password_resets (
 
 ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS booking_fields JSONB NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS booking_intro TEXT NOT NULL DEFAULT '';
+ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS chatbot_enabled BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS chatbot_greeting TEXT NOT NULL DEFAULT '';
+ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS chatbot_fallback TEXT NOT NULL DEFAULT '';
+ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS chatbot_phone_number_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS chatbot_webhook_secret TEXT NOT NULL DEFAULT '';
+ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS chatbot_model TEXT NOT NULL DEFAULT 'gpt-4.1-mini';
+ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS chatbot_prompt TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS chatbot_threads (
+  phone TEXT PRIMARY KEY,
+  messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS form_fields JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS extra_field_defs (

@@ -19,6 +19,7 @@ import agendaRouter from './routes/agenda.js';
 import patientsRouter from './routes/patients.js';
 import clinicalRouter from './routes/clinical.js';
 import usersRouter from './routes/users.js';
+import kapsoRouter from './routes/kapso.js';
 
 assertRuntimeConfig();
 
@@ -32,7 +33,12 @@ app.use(
     origin: config.corsOrigin === '*' ? true : config.corsOrigin.split(',').map((s) => s.trim()),
   })
 );
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({
+  limit: '2mb',
+  verify: (req, _res, buf) => {
+    req.rawBody = buf;
+  },
+}));
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -43,6 +49,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/public', publicRouter);
+app.use('/api/kapso', kapsoRouter);
 app.use('/api/auth', async (req, res, next) => {
   if (req.path === '/login' || req.path === '/olvide' || req.path === '/restablecer') return next();
   const user = await userFromToken(readToken(req));

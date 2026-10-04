@@ -3,6 +3,8 @@ import { query } from '../db/pool.js';
 import { getClinicSettings } from '../lib/availability.js';
 import { bookingFields as normalizeBookingFields } from '../lib/bookingFields.js';
 import { formFields as normalizeFormFields } from '../lib/formFields.js';
+import { chatModel } from '../lib/chatbot.js';
+import { config } from '../config.js';
 
 const router = Router();
 
@@ -14,6 +16,7 @@ router.get('/', async (_req, res, next) => {
         ...data,
         booking_fields: normalizeBookingFields(data.booking_fields),
         form_fields: normalizeFormFields(data.form_fields),
+        kapso_phone_number_id: data.chatbot_phone_number_id || config.kapsoPhoneNumberId,
       },
     });
   } catch (err) {
@@ -34,6 +37,11 @@ router.put('/', async (req, res, next) => {
       bookingFields: incomingFields,
       bookingIntro = current.booking_intro || '',
       formFields: incomingFormFields,
+      chatbotEnabled = current.chatbot_enabled,
+      chatbotGreeting = current.chatbot_greeting,
+      chatbotFallback = current.chatbot_fallback,
+      chatbotModel = current.chatbot_model,
+      chatbotPrompt = current.chatbot_prompt,
     } = req.body || {};
     const fields = normalizeBookingFields(incomingFields ?? current.booking_fields);
     const forms = normalizeFormFields(incomingFormFields ?? current.form_fields);
@@ -41,10 +49,17 @@ router.put('/', async (req, res, next) => {
       `UPDATE clinic_settings
        SET name = $1, timezone = $2, start_hour = $3, end_hour = $4,
            slot_interval_min = $5, week_starts_on = $6, booking_fields = $7::jsonb,
-           booking_intro = $8, form_fields = $9::jsonb, updated_at = now()
+           booking_intro = $8, form_fields = $9::jsonb,
+           chatbot_enabled = $10, chatbot_greeting = $11, chatbot_fallback = $12,
+           chatbot_model = $13, chatbot_prompt = $14, updated_at = now()
        WHERE id = 1
        RETURNING *`,
-      [name, timezone, startHour, endHour, slotIntervalMin, weekStartsOn, JSON.stringify(fields), String(bookingIntro || '').slice(0, 500), JSON.stringify(forms)]
+      [
+        name, timezone, startHour, endHour, slotIntervalMin, weekStartsOn,
+        JSON.stringify(fields), String(bookingIntro || '').slice(0, 500), JSON.stringify(forms),
+        Boolean(chatbotEnabled), String(chatbotGreeting || '').slice(0, 800), String(chatbotFallback || '').slice(0, 800),
+        chatModel(chatbotModel), String(chatbotPrompt || '').slice(0, 4000),
+      ]
     );
     res.json({ data: { ...result.rows[0], booking_fields: fields, form_fields: forms } });
   } catch (err) {
