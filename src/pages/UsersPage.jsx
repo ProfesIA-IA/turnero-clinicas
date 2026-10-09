@@ -28,6 +28,7 @@ export default function UsersPage() {
   const [professionals, setProfessionals] = useState([]);
   const [patients, setPatients] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [emailEnabled, setEmailEnabled] = useState(false);
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
@@ -38,6 +39,10 @@ export default function UsersPage() {
   useEffect(() => {
     setPage(1);
   }, [q]);
+
+  useEffect(() => {
+    api.features().then((features) => setEmailEnabled(Boolean(features.email))).catch(() => {});
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -256,12 +261,12 @@ function UserForm({ form, meta, professionals, patients, onClose, onSave }) {
               type="password"
               value={state.password}
               onChange={(e) => setState({ ...state, password: e.target.value })}
-              required={!state.id && !state.email}
+              required={!state.id && (!emailEnabled || !state.email)}
               minLength={state.password ? 6 : undefined}
               placeholder={state.id ? 'Dejar vacío para no cambiarla' : 'O enviá un enlace al email'}
             />
           </label>
-          {state.email && (
+          {emailEnabled && state.email && (
             <div className="grid gap-2 text-sm">
               <label className="flex items-center gap-2">
                 <input

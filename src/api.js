@@ -53,6 +53,7 @@ export const api = {
   logout: () => request('/api/auth/logout', { method: 'POST', body: {} }),
   forgotPassword: (email) => request('/api/auth/olvide', { method: 'POST', body: { email } }),
   resetPassword: (body) => request('/api/auth/restablecer', { method: 'POST', body }),
+  features: () => request('/api/public/features').then((res) => res.data || { email: false, chat: false }),
   settings: () => request('/api/settings'),
   saveSettings: (body) => request('/api/settings', { method: 'PUT', body }),
   kapsoNumbers: () => request('/api/kapso/numeros').then((res) => res.data || []),

@@ -15,7 +15,8 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '../api';
 import { useAuth } from '../auth';
 import { useClinic } from '../clinic';
 import { can } from '../lib/permissions';
@@ -30,8 +31,8 @@ const NAV = [
   { to: '/servicios', label: 'Servicios', icon: Stethoscope, perm: 'servicios.ver' },
   { to: '/usuarios', label: 'Usuarios', icon: Shield, perm: 'usuarios.ver' },
   { to: '/configuracion', label: 'Configuración', icon: Settings, perm: 'configuracion.ver' },
-  { to: '/chatbot', label: 'Chatbot', icon: MessageCircle, perm: 'configuracion.ver' },
-  { to: '/mensajes', label: 'Mensajes', icon: Inbox, perm: 'configuracion.ver' },
+  { to: '/chatbot', label: 'Chatbot', icon: MessageCircle, perm: 'configuracion.ver', feature: 'chat' },
+  { to: '/mensajes', label: 'Mensajes', icon: Inbox, perm: 'configuracion.ver', feature: 'chat' },
   { to: '/campos', label: 'Campos extra', icon: ListPlus, perm: 'configuracion.ver' },
   { to: '/perfil', label: 'Mi perfil', icon: CircleUser },
 ];
@@ -40,6 +41,11 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { settings } = useClinic();
   const [open, setOpen] = useState(false);
+  const [features, setFeatures] = useState({ email: false, chat: false });
+
+  useEffect(() => {
+    api.features().then(setFeatures).catch(() => {});
+  }, []);
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -78,7 +84,7 @@ export default function Layout() {
               </button>
             </div>
             <nav>
-              {NAV.filter((item) => !item.perm || can(user, item.perm)).map((item) => (
+              {NAV.filter((item) => (!item.perm || can(user, item.perm)) && (!item.feature || features[item.feature])).map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}

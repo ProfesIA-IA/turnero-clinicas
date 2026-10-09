@@ -48,6 +48,8 @@ Zona horaria por defecto: `America/Argentina/Buenos_Aires`. Cambiala en **Config
 
 Para dejar de cargar datos de demostración, poné `SEED_DEMO=false` (solo afecta bases vacías).
 
+El menú de **Chatbot** y **Mensajes** aparece solo si configurás `KAPSO_API_KEY`. El recupero de contraseña y el envío de claves por email aparecen solo si configurás `RESEND_API_KEY`. Esas variables pueden quedar vacías.
+
 ### Fuente
 
 GitHub: `ProfesIA-IA/turnero-clinicas`  

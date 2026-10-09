@@ -3,8 +3,13 @@ import { query } from '../db/pool.js';
 import { availabilityForDay, getClinicSettings } from '../lib/availability.js';
 import { createAppointment } from './appointments.js';
 import { bookingFields, patientFromBooking } from '../lib/bookingFields.js';
+import { integrationFlags } from '../config.js';
 
 const router = Router();
+
+router.get('/features', (_req, res) => {
+  res.json({ data: integrationFlags() });
+});
 
 async function publicProfessional(slug) {
   const result = await query(

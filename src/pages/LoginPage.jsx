@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { api } from '../api';
@@ -13,6 +13,11 @@ export default function LoginPage() {
   const [forgot, setForgot] = useState(false);
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [emailEnabled, setEmailEnabled] = useState(false);
+
+  useEffect(() => {
+    api.features().then((features) => setEmailEnabled(Boolean(features.email))).catch(() => {});
+  }, []);
 
   if (!loading && isAuthenticated) return <Navigate to="/" replace />;
 
@@ -63,10 +68,12 @@ export default function LoginPage() {
           >
             Ingresar
           </button>
+          {emailEnabled && (
           <button type="button" className="mt-4 text-sm text-[#1a73e8]" onClick={() => setForgot(true)}>
             Olvidé mi contraseña
           </button>
-          {forgot && (
+          )}
+          {emailEnabled && forgot && (
             <div className="mt-4 border-t border-[#dadce0] pt-4">
               {sent ? (
                 <p className="text-sm text-[#3c4043]">Si el email está cargado en un usuario, vas a recibir un enlace para definir la contraseña.</p>

@@ -133,9 +133,13 @@ Healthcheck: `GET /health` → `{ "ok": true }`.
 | `SEED_DEMO` | `true` la primera vez; después podés pasarlo a `false` |
 | `UPLOAD_DIR` | `/data/uploads` si hay volumen montado en `/data` |
 | `CORS_ORIGIN` | `*` o el dominio público |
-| `RESEND_API_KEY` | API key de Resend. Vacía desactiva el envío |
+| `RESEND_API_KEY` | API key de Resend. Vacía oculta el recupero y el envío de claves |
 | `EMAIL_FROM` | Remitente del dominio verificado. Vacío = sandbox |
-| `EMAIL_DEV_TO` | Casilla que recibe los mails de prueba |
+| `EMAIL_DEV_TO` | Casilla de prueba. En producción no recibe los mails reales |
+| `KAPSO_API_KEY` | API key de Kapso. Vacía oculta Chatbot y Mensajes |
+| `KAPSO_PHONE_NUMBER_ID` | Número de WhatsApp de Kapso |
+| `KAPSO_WEBHOOK_SECRET` | Secret del webhook de Kapso |
+| `OPENAI_API_KEY` | API key de OpenAI para las respuestas del chatbot |
 
 Después del deploy:
 

@@ -36,6 +36,10 @@ export default defineRailway(() => {
       EMAIL_FROM: "",
       EMAIL_DEV_TO: "",
       PUBLIC_APP_URL: "",
+      KAPSO_API_KEY: "",
+      KAPSO_PHONE_NUMBER_ID: "",
+      KAPSO_WEBHOOK_SECRET: "",
+      OPENAI_API_KEY: "",
     },
   });
 

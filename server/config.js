@@ -34,6 +34,13 @@ export const config = {
   openaiApiKey: process.env.OPENAI_API_KEY || '',
 };
 
+export function integrationFlags() {
+  return {
+    email: Boolean(config.resendApiKey),
+    chat: Boolean(config.kapsoApiKey),
+  };
+}
+
 export function assertRuntimeConfig() {
   if (!config.databaseUrl) {
     throw new Error('Missing required environment variable: DATABASE_URL');
